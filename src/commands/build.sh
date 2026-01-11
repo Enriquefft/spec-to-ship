@@ -93,6 +93,22 @@ cmd_build() {
         hitl_mode="$(config_get HITL_MODE)"
     fi
 
+    # Validate HITL mode
+    case "$hitl_mode" in
+        task|milestone|uncertain|disabled)
+            # Valid modes
+            ;;
+        every:*)
+            # Validate every:N format
+            if ! [[ "$hitl_mode" =~ ^every:[0-9]+$ ]]; then
+                die "Invalid HITL mode format: $hitl_mode (expected every:N where N is a number)"
+            fi
+            ;;
+        *)
+            die "Invalid HITL mode: $hitl_mode (must be: task, milestone, uncertain, disabled, or every:N)"
+            ;;
+    esac
+
     # Get project root
     local project_root
     if project_root="$(git_root 2>/dev/null)"; then
@@ -122,6 +138,9 @@ cmd_build() {
     # Main build loop
     local iteration=0
     local exit_code=0
+    local tasks_executed=0
+    local current_milestone=""
+    local prev_milestone=""
 
     while [[ $iteration -lt $max_iterations ]]; do
         # Check for interruption
@@ -131,22 +150,45 @@ cmd_build() {
             break
         fi
 
-        ((iteration++))
+        ((iteration++)) || true
 
         # Get next pending task
         local task_id
-        if ! task_id=$(plan_get_next_task "$milestone"); then
-            log_info "No more pending tasks"
-            break
-        fi
+        set +e  # Temporarily disable exit on error for plan_get_next_task
+        task_id=$(plan_get_next_task "$milestone")
+        local get_task_result=$?
+        set -e  # Re-enable exit on error
 
-        if [[ -z "$task_id" ]]; then
-            log_info "All tasks complete!"
+        if [[ $get_task_result -ne 0 ]] || [[ -z "$task_id" ]]; then
+            if [[ $tasks_executed -eq 0 ]]; then
+                log_info "No pending tasks found"
+            else
+                log_info "All pending tasks complete"
+                # Check for milestone completion HITL
+                if [[ -n "$prev_milestone" ]]; then
+                    _build_hitl_milestone_check "$prev_milestone" "$hitl_mode"
+                fi
+            fi
             break
         fi
 
         log_info "[$iteration/$max_iterations] Executing task: $task_id"
         echo ""
+
+        # Detect milestone change
+        if command -v plan_get_task_milestone &> /dev/null; then
+            current_milestone=$(PLAN_TASK_MILESTONE[$task_id]:-"")
+        fi
+
+        # Check for milestone transition
+        if [[ -n "$prev_milestone" && "$prev_milestone" != "$current_milestone" ]]; then
+            # Milestone complete - check for HITL
+            if ! _build_hitl_milestone_check "$prev_milestone" "$hitl_mode"; then
+                log_warn "Milestone continuation rejected by user"
+                exit_code=1
+                break
+            fi
+        fi
 
         # Execute single task iteration
         if ! _build_execute_task "$project_root" "$task_id" "$hitl_mode"; then
@@ -155,22 +197,44 @@ cmd_build() {
             break
         fi
 
+        ((tasks_executed++)) || true
+        prev_milestone="$current_milestone"
+
+        # Check for every:N HITL
+        if [[ "$hitl_mode" =~ ^every:([0-9]+)$ ]]; then
+            local interval="${BASH_REMATCH[1]}"
+            if [[ $((tasks_executed % interval)) -eq 0 ]]; then
+                if ! _build_hitl_iteration_check "$tasks_executed" "$hitl_mode"; then
+                    log_warn "Iteration review rejected by user"
+                    exit_code=1
+                    break
+                fi
+            fi
+        fi
+
         echo ""
     done
 
     # Cleanup signal handler
     trap - SIGINT SIGTERM
 
-    # Check if we hit max iterations
+    # Check if we hit max iterations with pending work remaining
     if [[ $iteration -ge $max_iterations ]] && [[ $exit_code -eq 0 ]]; then
-        log_warn "Reached maximum iterations ($max_iterations)"
-        exit_code=2
+        # Check if there are still pending tasks
+        local remaining_task
+        set +e  # Temporarily disable exit on error for plan_get_next_task
+        remaining_task=$(plan_get_next_task "$milestone")
+        set -e  # Re-enable exit on error
+        if [[ -n "$remaining_task" ]]; then
+            log_warn "Reached maximum iterations ($max_iterations) with pending tasks remaining"
+            exit_code=2
+        fi
     fi
 
     if [[ $exit_code -eq 0 ]]; then
         echo ""
         log_info "${COLOR_GREEN}✓${COLOR_RESET} Build loop completed successfully"
-        log_info "Total iterations: $iteration"
+        log_info "Iterations: $iteration, Tasks executed: $tasks_executed"
     fi
 
     return $exit_code
@@ -375,11 +439,18 @@ _build_invoke_claude() {
     local model
     model="$(config_get MODEL_BUILD_PRIMARY)"
 
-    # Get prompt template
+    # Get prompt template (try project first, then fallback to script source)
     local prompt_file="$project_root/src/prompts/PROMPT_build.md"
     if [[ ! -f "$prompt_file" ]]; then
-        log_error "Prompt template not found: $prompt_file"
-        return 1
+        # Fallback to source prompts directory
+        local script_prompts="${LIB_DIR}/../prompts/PROMPT_build.md"
+        if [[ -f "$script_prompts" ]]; then
+            prompt_file="$script_prompts"
+            log_debug "Using fallback prompt: $prompt_file"
+        else
+            log_error "Prompt template not found in project or source: $prompt_file"
+            return 1
+        fi
     fi
 
     # Create combined prompt
@@ -518,11 +589,17 @@ _build_hitl_prompt() {
     log_info "${COLOR_YELLOW}HITL Checkpoint${COLOR_RESET}: Task $task_id ready to commit"
 
     # Show git status
-    git status --short
-
     echo ""
+    git status --short
+    echo ""
+
+    # Show diff summary
+    echo -e "${COLOR_BLUE}Changes summary:${COLOR_RESET}"
+    git diff --stat --cached 2>/dev/null || git diff --stat 2>/dev/null || echo "No changes"
+    echo ""
+
     local response
-    if ! response=$(hitl_prompt "Approve commit? [y/n/skip]" "$(config_get HITL_TIMEOUT)"); then
+    if ! response=$(hitl_prompt "Approve commit? [y/n/edit/skip]" "decision" "y) Yes - approve and commit\nn) No - rollback and retry\nedit) Edit - open in editor\nskip) Skip - skip this task"); then
         log_warn "HITL timeout, auto-approving..."
         return 0
     fi
@@ -535,15 +612,124 @@ _build_hitl_prompt() {
         n|no)
             log_info "Rejected by user, rolling back changes"
             git reset --hard HEAD 2>/dev/null || true
+            git clean -fd 2>/dev/null || true
             return 1
             ;;
-        skip)
+        edit|e)
+            log_info "Opening editor for manual changes..."
+            # Launch editor if available
+            if [[ -n "${EDITOR:-}" ]]; then
+                $EDITOR .
+            elif command -v code &> /dev/null; then
+                code .
+            elif command -v vi &> /dev/null; then
+                vi .
+            else
+                log_warn "No editor found, use EDITOR environment variable"
+            fi
+            # Ask again after editing
+            return _build_hitl_prompt "$task_id"
+            ;;
+        skip|s)
             log_info "Skipped by user"
+            git reset --hard HEAD 2>/dev/null || true
             return 1
             ;;
         *)
-            log_warn "Invalid response, treating as rejection"
+            log_warn "Invalid response: $response, treating as rejection"
             return 1
+            ;;
+    esac
+}
+
+# _build_hitl_milestone_check - Check for milestone completion HITL
+# Arguments: milestone, hitl_mode
+_build_hitl_milestone_check() {
+    local milestone="$1"
+    local hitl_mode="$2"
+
+    # Only trigger for milestone mode
+    if [[ "$hitl_mode" != "milestone" ]]; then
+        return 0
+    fi
+
+    echo ""
+    log_info "${COLOR_YELLOW}HITL Milestone Checkpoint${COLOR_RESET}: Milestone $milestone complete"
+    echo ""
+
+    local response
+    if ! response=$(hitl_prompt "Proceed to next milestone? [y/n/rework/replan]" "milestone" "y) Yes - continue to next milestone\nn) No - stop execution\nrework) Rework - return to planning\nreplan) Replan - regenerate plan"); then
+        log_warn "HITL timeout, auto-continuing..."
+        return 0
+    fi
+
+    case "${response,,}" in
+        y|yes|proceed)
+            log_info "Proceeding to next milestone"
+            return 0
+            ;;
+        n|no|stop)
+            log_info "Stopping at milestone boundary"
+            return 1
+            ;;
+        rework)
+            log_info "User requested rework - stopping for manual intervention"
+            echo ""
+            log_info "To continue, review and update the plan, then run: workflow build"
+            return 1
+            ;;
+        replan)
+            log_info "User requested replan - stopping for plan regeneration"
+            echo ""
+            log_info "To continue, run: workflow plan --regen && workflow build"
+            return 1
+            ;;
+        *)
+            log_warn "Invalid response: $response, stopping"
+            return 1
+            ;;
+    esac
+}
+
+# _build_hitl_iteration_check - Check for every:N iteration HITL
+# Arguments: iteration_count, hitl_mode
+_build_hitl_iteration_check() {
+    local iteration_count="$1"
+    local hitl_mode="$2"
+
+    echo ""
+    log_info "${COLOR_YELLOW}HITL Iteration Checkpoint${COLOR_RESET}: $iteration_count tasks executed"
+    echo ""
+
+    # Show recent commits
+    echo -e "${COLOR_BLUE}Recent commits:${COLOR_RESET}"
+    git log --oneline -5 2>/dev/null || echo "No commits yet"
+    echo ""
+
+    local response
+    if ! response=$(hitl_prompt "Continue execution? [y/n/pause]" "iteration" "y) Yes - continue\nn) No - stop\npause) Pause - review and resume manually"); then
+        log_warn "HITL timeout, auto-continuing..."
+        return 0
+    fi
+
+    case "${response,,}" in
+        y|yes|continue)
+            log_info "Continuing execution"
+            return 0
+            ;;
+        n|no|stop)
+            log_info "Stopping execution at iteration checkpoint"
+            return 1
+            ;;
+        pause|p)
+            log_info "Pausing for manual review"
+            echo ""
+            log_info "To resume, run: workflow build"
+            return 1
+            ;;
+        *)
+            log_warn "Invalid response: $response, continuing"
+            return 0
             ;;
     esac
 }
