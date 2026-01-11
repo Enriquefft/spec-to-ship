@@ -147,19 +147,19 @@
 
 ### Tests for User Story 5
 
-- [ ] T045 [P] [US5] Create BATS integration test for plan command in tests/integration/test_plan.bats covering generation, --regen, and --milestone modes
+- [X] T045 [P] [US5] Create BATS integration test for plan command in tests/integration/test_plan.bats covering generation, --regen, and --milestone modes
 
 ### Implementation for User Story 5
 
-- [ ] T046 [US5] Implement workflow plan command in src/commands/plan.sh with --regen and --milestone flags per FR-010
-- [ ] T047 [US5] Load specs/*.md and docs/ARCHITECTURE.md for context
-- [ ] T048 [US5] Scan src/* directory for existing code to perform gap analysis comparing spec requirements against current state per FR-010
-- [ ] T049 [US5] Load PROMPT_plan.md and invoke Claude via claude_invoke with MODEL_PLAN from config
-- [ ] T050 [US5] Generate docs/IMPLEMENTATION_PLAN.md with milestone-based SLC slices per FR-011 and data-model.md Implementation Plan entity
-- [ ] T051 [US5] Derive test requirements from acceptance criteria for each task per FR-012 and format as "Required tests:" lines
-- [ ] T052 [US5] Include explicit task dependencies using "depends:" markers and implement task state tracking (pending, in_progress, done, failed, blocked) per FR-028 and research.md Decision 5
-- [ ] T053 [US5] Support --regen to regenerate from scratch and --milestone to filter specific milestone per acceptance scenarios 2-3
-- [ ] T054 [US5] Add error handling for missing specs/architecture per cli-interface.md
+- [X] T046 [US5] Implement workflow plan command in src/commands/plan.sh with --regen and --milestone flags per FR-010
+- [X] T047 [US5] Load specs/*.md and docs/ARCHITECTURE.md for context
+- [X] T048 [US5] Scan src/* directory for existing code to perform gap analysis comparing spec requirements against current state per FR-010
+- [X] T049 [US5] Load PROMPT_plan.md and invoke Claude via claude_invoke with MODEL_PLAN from config
+- [X] T050 [US5] Generate docs/IMPLEMENTATION_PLAN.md with milestone-based SLC slices per FR-011 and data-model.md Implementation Plan entity
+- [X] T051 [US5] Derive test requirements from acceptance criteria for each task per FR-012 and format as "Required tests:" lines
+- [X] T052 [US5] Include explicit task dependencies using "depends:" markers and implement task state tracking (pending, in_progress, done, failed, blocked) per FR-028 and research.md Decision 5
+- [X] T053 [US5] Support --regen to regenerate from scratch and --milestone to filter specific milestone per acceptance scenarios 2-3
+- [X] T054 [US5] Add error handling for missing specs/architecture per cli-interface.md
 
 **Checkpoint**: User Story 5 complete - `workflow plan` functional and testable independently
 
