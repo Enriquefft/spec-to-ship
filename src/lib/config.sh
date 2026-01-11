@@ -2,7 +2,7 @@
 # src/lib/config.sh - Configuration loading and validation
 
 # Source common utilities
-LIB_DIR="${LIB_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+: "${LIB_DIR:=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 # shellcheck source=src/lib/common.sh
 source "${LIB_DIR}/common.sh"
 
@@ -30,11 +30,15 @@ declare -A CONFIG_DEFAULTS=(
 # Current configuration (populated by config_load)
 declare -A CONFIG
 
-# Valid model names
-readonly VALID_MODELS=("opus" "sonnet" "haiku")
+# Valid model names (only set once)
+if [[ ! -v VALID_MODELS ]]; then
+    readonly VALID_MODELS=("opus" "sonnet" "haiku")
+fi
 
-# Valid HITL modes
-readonly VALID_HITL_MODES=("task" "milestone" "uncertain")
+# Valid HITL modes (only set once)
+if [[ ! -v VALID_HITL_MODES ]]; then
+    readonly VALID_HITL_MODES=("task" "milestone" "uncertain")
+fi
 
 # config_load() - Load configuration from file or environment
 config_load() {

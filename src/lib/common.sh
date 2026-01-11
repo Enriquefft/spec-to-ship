@@ -4,13 +4,15 @@
 # Enable strict mode
 set -euo pipefail
 
-# Color codes for terminal output
-readonly COLOR_RESET='\033[0m'
-readonly COLOR_RED='\033[0;31m'
-readonly COLOR_YELLOW='\033[0;33m'
-readonly COLOR_GREEN='\033[0;32m'
-readonly COLOR_BLUE='\033[0;34m'
-readonly COLOR_GRAY='\033[0;90m'
+# Color codes for terminal output (only set if not already set)
+if [[ -z "${COLOR_RESET:-}" ]]; then
+    readonly COLOR_RESET='\033[0m'
+    readonly COLOR_RED='\033[0;31m'
+    readonly COLOR_YELLOW='\033[0;33m'
+    readonly COLOR_GREEN='\033[0;32m'
+    readonly COLOR_BLUE='\033[0;34m'
+    readonly COLOR_GRAY='\033[0;90m'
+fi
 
 # Log level configuration
 VERBOSE="${VERBOSE:-false}"

@@ -2,7 +2,7 @@
 # src/lib/hitl.sh - Human-in-the-loop interaction handling
 
 # Source common utilities
-LIB_DIR="${LIB_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+: "${LIB_DIR:=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 # shellcheck source=src/lib/common.sh
 source "${LIB_DIR}/common.sh"
 # shellcheck source=src/lib/config.sh

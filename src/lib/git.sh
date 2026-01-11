@@ -2,7 +2,7 @@
 # src/lib/git.sh - Git operations with atomic commit support
 
 # Source common utilities
-LIB_DIR="${LIB_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+: "${LIB_DIR:=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 # shellcheck source=src/lib/common.sh
 source "${LIB_DIR}/common.sh"
 

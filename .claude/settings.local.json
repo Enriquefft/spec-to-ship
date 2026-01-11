@@ -9,7 +9,10 @@
       "Bash(chmod:*)",
       "Bash(git rev-parse:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(src/workflow:*)",
+      "Bash(/home/hybridz/Projects/spec-to-ship/src/workflow init:*)",
+      "Bash(/home/hybridz/Projects/spec-to-ship/src/workflow clarify:*)"
     ],
     "deny": [],
     "ask": []
