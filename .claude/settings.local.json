@@ -6,7 +6,9 @@
       "Bash(.specify/scripts/bash/check-prerequisites.sh:*)",
       "Bash(.specify/scripts/bash/setup-plan.sh:*)",
       "Bash(.specify/scripts/bash/update-agent-context.sh:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

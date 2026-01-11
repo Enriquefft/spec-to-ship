@@ -17,10 +17,10 @@
 
 **Purpose**: Initialize project structure for Bash CLI application
 
-- [ ] T001 Create directory structure: src/, src/lib/, src/commands/, src/prompts/, tests/unit/, tests/integration/, tests/fixtures/
-- [ ] T002 [P] Create main entry point script at src/workflow with shebang and permissions
-- [ ] T003 [P] Create README.md with prerequisites and installation instructions
-- [ ] T004 [P] Create .gitignore for .workflow/logs/, temp files, and OS artifacts
+- [X] T001 Create directory structure: src/, src/lib/, src/commands/, src/prompts/, tests/unit/, tests/integration/, tests/fixtures/
+- [X] T002 [P] Create main entry point script at src/workflow with shebang and permissions
+- [X] T003 [P] Create README.md with prerequisites and installation instructions
+- [X] T004 [P] Create .gitignore for .workflow/logs/, temp files, and OS artifacts
 
 ---
 
@@ -30,14 +30,14 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T005 [P] Implement logging functions (log_debug, log_info, log_warn, log_error, die) in src/lib/common.sh per library-interfaces.md
-- [ ] T006 [P] Implement utility functions (require_command, require_file, ensure_dir) in src/lib/common.sh per library-interfaces.md
-- [ ] T007 [P] Implement config loading (config_load, config_get, config_set, config_validate, config_model_for_phase) in src/lib/config.sh per library-interfaces.md
-- [ ] T008 [P] Implement git operations (git_is_repo, git_root, git_branch, git_is_clean, git_atomic_commit, git_push, git_reset_staged) in src/lib/git.sh per library-interfaces.md
-- [ ] T009 [P] Implement Claude CLI wrapper (claude_invoke, claude_invoke_with_input, claude_stream) in src/lib/claude.sh per library-interfaces.md with retry logic and exponential backoff
-- [ ] T010 [P] Implement HITL functions (hitl_is_enabled, hitl_mode, hitl_should_pause, hitl_prompt, hitl_prompt_yn, hitl_log) in src/lib/hitl.sh per library-interfaces.md
-- [ ] T011 [P] Implement plan manipulation functions (plan_load, plan_get_next_task, plan_get_task_status, plan_set_task_status, plan_get_task_deps, plan_deps_satisfied, plan_milestone_complete) in src/lib/plan.sh per library-interfaces.md
-- [ ] T012 Update src/workflow to source all libraries and implement subcommand routing per cli-interface.md
+- [X] T005 [P] Implement logging functions (log_debug, log_info, log_warn, log_error, die) in src/lib/common.sh per library-interfaces.md
+- [X] T006 [P] Implement utility functions (require_command, require_file, ensure_dir) in src/lib/common.sh per library-interfaces.md
+- [X] T007 [P] Implement config loading (config_load, config_get, config_set, config_validate, config_model_for_phase) in src/lib/config.sh per library-interfaces.md
+- [X] T008 [P] Implement git operations (git_is_repo, git_root, git_branch, git_is_clean, git_atomic_commit, git_push, git_reset_staged) in src/lib/git.sh per library-interfaces.md
+- [X] T009 [P] Implement Claude CLI wrapper (claude_invoke, claude_invoke_with_input, claude_stream) in src/lib/claude.sh per library-interfaces.md with retry logic and exponential backoff
+- [X] T010 [P] Implement HITL functions (hitl_is_enabled, hitl_mode, hitl_should_pause, hitl_prompt, hitl_prompt_yn, hitl_log) in src/lib/hitl.sh per library-interfaces.md
+- [X] T011 [P] Implement plan manipulation functions (plan_load, plan_get_next_task, plan_get_task_status, plan_set_task_status, plan_get_task_deps, plan_deps_satisfied, plan_milestone_complete) in src/lib/plan.sh per library-interfaces.md
+- [X] T012 Update src/workflow to source all libraries and implement subcommand routing per cli-interface.md
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -51,18 +51,18 @@
 
 ### Tests for User Story 1
 
-- [ ] T013 [P] [US1] Create BATS unit test for directory creation in tests/unit/test_init.bats
-- [ ] T014 [P] [US1] Create BATS integration test for init command in tests/integration/test_init.bats covering all 3 acceptance scenarios
+- [X] T013 [P] [US1] Create BATS unit test for directory creation in tests/unit/test_init.bats
+- [X] T014 [P] [US1] Create BATS integration test for init command in tests/integration/test_init.bats covering all 3 acceptance scenarios
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Implement workflow init command in src/commands/init.sh: create .workflow/, docs/, specs/, src/, src/lib/ directories per FR-003
-- [ ] T016 [US1] Add --from flag handling to copy PRD file to docs/PRD.md per acceptance scenario 3
-- [ ] T017 [US1] Implement idempotency check to preserve existing files unless --force specified per FR-004
-- [ ] T018 [US1] Generate default .workflow/config.sh with all MODEL_* and HITL_* defaults from data-model.md Configuration entity
-- [ ] T019 [US1] Generate AGENTS.md operational guide template in project root
-- [ ] T020 [US1] Create prompt template files: src/prompts/PROMPT_clarify.md, PROMPT_specs.md, PROMPT_arch.md, PROMPT_plan.md, PROMPT_build.md with placeholder content
-- [ ] T021 [US1] Add error handling for permission denied and invalid paths per cli-interface.md exit codes
+- [X] T015 [US1] Implement workflow init command in src/commands/init.sh: create .workflow/, docs/, specs/, src/, src/lib/ directories per FR-003
+- [X] T016 [US1] Add --from flag handling to copy PRD file to docs/PRD.md per acceptance scenario 3
+- [X] T017 [US1] Implement idempotency check to preserve existing files unless --force specified per FR-004
+- [X] T018 [US1] Generate default .workflow/config.sh with all MODEL_* and HITL_* defaults from data-model.md Configuration entity
+- [X] T019 [US1] Generate AGENTS.md operational guide template in project root
+- [X] T020 [US1] Create prompt template files: src/prompts/PROMPT_clarify.md, PROMPT_specs.md, PROMPT_arch.md, PROMPT_plan.md, PROMPT_build.md with placeholder content
+- [X] T021 [US1] Add error handling for permission denied and invalid paths per cli-interface.md exit codes
 
 **Checkpoint**: User Story 1 complete - `workflow init` functional and testable independently
 
