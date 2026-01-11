@@ -1,0 +1,215 @@
+#!/usr/bin/env bash
+# workflow - Main entry point for Spec-to-Ship automated development workflow
+
+set -euo pipefail
+
+# Script metadata
+readonly VERSION="1.0.0"
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly LIB_DIR="${SCRIPT_DIR}/lib"
+readonly COMMANDS_DIR="${SCRIPT_DIR}/commands"
+
+# Export paths for libraries
+export LIB_DIR
+export COMMANDS_DIR
+
+# Source common library
+# shellcheck source=src/lib/common.sh
+source "${LIB_DIR}/common.sh"
+
+# Initialize logging
+_init_logging() {
+    local git_root
+    if git_root="$(get_git_root 2>/dev/null)"; then
+        LOG_DIR="${git_root}/.workflow/logs"
+    else
+        LOG_DIR=".workflow/logs"
+    fi
+
+    ensure_dir "$LOG_DIR"
+
+    # Create session log file
+    LOG_FILE="${LOG_DIR}/$(date '+%Y%m%d_%H%M%S').log"
+    export LOG_FILE
+
+    log_debug "Session log: $LOG_FILE"
+}
+
+# Show help message
+show_help() {
+    cat <<EOF
+workflow - Spec-to-Ship Automated Development Workflow
+
+USAGE:
+    workflow <subcommand> [options] [arguments]
+
+VERSION:
+    $VERSION
+
+SUBCOMMANDS:
+    init        Initialize project with Spec-to-Ship structure
+    clarify     Transform rough PRD into structured format
+    specs       Generate spec files from structured PRD
+    arch        Generate architecture document from specs
+    plan        Generate implementation plan
+    build       Execute autonomous build loop
+    gate        Run milestone validation
+    status      Show current workflow state
+    diff        Show changes since last milestone
+    config      Manage configuration
+
+GLOBAL OPTIONS:
+    -h, --help      Show help for command
+    -v, --version   Show version
+    --verbose       Enable debug output to stderr
+    -c, --config    Override config file path
+
+EXAMPLES:
+    # Initialize new project
+    workflow init
+
+    # Run clarification with existing PRD
+    workflow clarify
+
+    # Build with HITL enabled
+    workflow build --hitl milestone
+
+    # Check current status
+    workflow status
+
+For help on a specific subcommand, run:
+    workflow <subcommand> --help
+
+EOF
+}
+
+# Show version
+show_version() {
+    echo "workflow version $VERSION"
+}
+
+# Parse global options
+VERBOSE=false
+CONFIG_FILE=""
+
+parse_global_options() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --verbose)
+                VERBOSE=true
+                export VERBOSE
+                shift
+                ;;
+            -c|--config)
+                CONFIG_FILE="$2"
+                export WORKFLOW_CONFIG="$CONFIG_FILE"
+                shift 2
+                ;;
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -v|--version)
+                show_version
+                exit 0
+                ;;
+            -*)
+                log_error "Unknown global option: $1"
+                show_help
+                exit 1
+                ;;
+            *)
+                # Not a global option, return
+                return 0
+                ;;
+        esac
+    done
+}
+
+# Main entry point
+main() {
+    # Parse global options first
+    parse_global_options "$@"
+
+    # Initialize logging after parsing verbose flag
+    _init_logging
+
+    # Check for subcommand
+    if [[ $# -eq 0 ]]; then
+        show_help
+        exit 1
+    fi
+
+    local cmd="$1"
+    shift
+
+    # Execute subcommand
+    case "$cmd" in
+        init)
+            # shellcheck source=src/commands/init.sh
+            source "${COMMANDS_DIR}/init.sh"
+            cmd_init "$@"
+            ;;
+        clarify)
+            # shellcheck source=src/commands/clarify.sh
+            source "${COMMANDS_DIR}/clarify.sh"
+            cmd_clarify "$@"
+            ;;
+        specs)
+            # shellcheck source=src/commands/specs.sh
+            source "${COMMANDS_DIR}/specs.sh"
+            cmd_specs "$@"
+            ;;
+        arch)
+            # shellcheck source=src/commands/arch.sh
+            source "${COMMANDS_DIR}/arch.sh"
+            cmd_arch "$@"
+            ;;
+        plan)
+            # shellcheck source=src/commands/plan.sh
+            source "${COMMANDS_DIR}/plan.sh"
+            cmd_plan "$@"
+            ;;
+        build)
+            # shellcheck source=src/commands/build.sh
+            source "${COMMANDS_DIR}/build.sh"
+            cmd_build "$@"
+            ;;
+        gate)
+            # shellcheck source=src/commands/gate.sh
+            source "${COMMANDS_DIR}/gate.sh"
+            cmd_gate "$@"
+            ;;
+        status)
+            # shellcheck source=src/commands/status.sh
+            source "${COMMANDS_DIR}/status.sh"
+            cmd_status "$@"
+            ;;
+        diff)
+            # shellcheck source=src/commands/diff.sh
+            source "${COMMANDS_DIR}/diff.sh"
+            cmd_diff "$@"
+            ;;
+        config)
+            # shellcheck source=src/commands/config.sh
+            source "${COMMANDS_DIR}/config.sh"
+            cmd_config "$@"
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        -v|--version)
+            show_version
+            exit 0
+            ;;
+        *)
+            log_error "Unknown subcommand: $cmd"
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"
