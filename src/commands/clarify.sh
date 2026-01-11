@@ -166,7 +166,7 @@ _clarify_noninteractive() {
     # Create combined prompt
     local temp_prompt
     temp_prompt="$(mktemp)"
-    trap 'rm -f "$temp_prompt"' EXIT
+    trap 'rm -f "${temp_prompt:-}"' EXIT
 
     {
         cat "$prompt_file"
@@ -219,11 +219,14 @@ _clarify_interactive() {
 
     log_info "Starting interactive clarification session..."
 
+    log_debug "Creating initial prompt..."
     # Initial invocation
     local temp_prompt
     temp_prompt="$(mktemp)"
-    trap 'rm -f "$temp_prompt"' EXIT
+    log_debug "Created temp file: $temp_prompt"
+    trap 'rm -f "${temp_prompt:-}"' EXIT
 
+    log_debug "Building prompt from template..."
     {
         cat "$prompt_file"
         echo ""
@@ -250,10 +253,13 @@ _clarify_interactive() {
         echo "Then provide the complete structured PRD."
     } > "$temp_prompt"
 
+    log_debug "Prompt built successfully, starting clarification rounds (max: $max_rounds)..."
+
     while [[ $current_round -lt $max_rounds ]]; do
-        ((current_round++))
+        current_round=$((current_round + 1))
         log_info "Clarification round $current_round/$max_rounds"
 
+        log_debug "Invoking Claude with prompt file: $temp_prompt"
         # Invoke Claude
         local response
         if ! response=$(claude_invoke "$model" "$temp_prompt"); then

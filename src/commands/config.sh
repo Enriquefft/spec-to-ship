@@ -170,10 +170,14 @@ get_config_value() {
     # Load configuration
     config_load
 
-    # Get value
-    local value
-    if value=$(config_get "$key"); then
-        echo "$value"
+    # Get value directly from CONFIG array
+    if [[ -v CONFIG[$key] ]] && [[ -n "${CONFIG[$key]:-}" ]]; then
+        # Value exists and is non-empty
+        printf '%s\n' "${CONFIG[$key]}"
+        return 0
+    elif [[ -v CONFIG[$key] ]]; then
+        # Value exists but is empty (like HITL_TIMEOUT)
+        printf '%s\n' "${CONFIG[$key]}"
         return 0
     else
         log_error "Configuration key not found: $key"

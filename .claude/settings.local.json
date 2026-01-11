@@ -21,7 +21,14 @@
       "Bash(else echo \"No checklists directory found\")",
       "Bash(fi)",
       "Bash(shellcheck:*)",
-      "Bash(./check-shellcheck.sh:*)"
+      "Bash(./check-shellcheck.sh:*)",
+      "Bash(bash -n:*)",
+      "Bash(/home/hybridz/Projects/spec-to-ship/src/workflow:*)",
+      "Bash(VERBOSE=true /home/hybridz/Projects/spec-to-ship/src/workflow clarify:*)",
+      "Bash(export VERBOSE=true)",
+      "Bash(/home/hybridz/Projects/spec-to-ship/src/workflow config:*)",
+      "Bash(echo:*)",
+      "Bash(bash -x /home/hybridz/Projects/spec-to-ship/src/commands/config.sh:*)"
     ],
     "deny": [],
     "ask": []

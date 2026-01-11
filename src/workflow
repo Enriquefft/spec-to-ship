@@ -13,10 +13,12 @@ while [ -L "$SCRIPT_PATH" ]; do
     [[ $SCRIPT_PATH != /* ]] && SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_PATH"
 done
 readonly SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+readonly WORKFLOW_BIN="$SCRIPT_PATH"
 readonly LIB_DIR="${SCRIPT_DIR}/lib"
 readonly COMMANDS_DIR="${SCRIPT_DIR}/commands"
 
 # Export paths for libraries
+export WORKFLOW_BIN
 export LIB_DIR
 export COMMANDS_DIR
 
@@ -135,8 +137,38 @@ parse_global_options() {
 
 # Main entry point
 main() {
-    # Parse global options first
-    parse_global_options "$@"
+    # Parse global options first - must consume args manually
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --verbose)
+                VERBOSE=true
+                export VERBOSE
+                shift
+                ;;
+            -c|--config)
+                CONFIG_FILE="$2"
+                export WORKFLOW_CONFIG="$CONFIG_FILE"
+                shift 2
+                ;;
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -v|--version)
+                show_version
+                exit 0
+                ;;
+            -*)
+                log_error "Unknown global option: $1"
+                show_help
+                exit 1
+                ;;
+            *)
+                # Not a global option, break to process subcommand
+                break
+                ;;
+        esac
+    done
 
     # Initialize logging after parsing verbose flag
     _init_logging

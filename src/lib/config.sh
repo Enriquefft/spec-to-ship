@@ -44,6 +44,7 @@ fi
 config_load() {
     local config_file="${WORKFLOW_CONFIG:-}"
     local git_root
+    local key value  # Declare as local to avoid polluting caller's scope
 
     # Determine config file location
     if [[ -z "$config_file" ]]; then

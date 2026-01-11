@@ -64,7 +64,7 @@ Run 'workflow clarify' first to generate the structured PRD."
     prd_content="$(cat "$prd_structured")"
 
     # Parse activities from structured PRD
-    local -a activities
+    local -a activities=()
     _parse_activities "$prd_content" activities
 
     if [[ ${#activities[@]} -eq 0 ]]; then
@@ -100,7 +100,7 @@ Run 'workflow clarify' first to generate the structured PRD."
     local generated_count=0
 
     for activity_name in "${activities[@]}"; do
-        ((activity_count++))
+        activity_count=$((activity_count + 1))
 
         # Get filename for this activity
         local spec_file="${activity_filenames[$activity_name]}"
@@ -112,7 +112,7 @@ Run 'workflow clarify' first to generate the structured PRD."
         if [[ -f "$spec_path" ]] && [[ "$force" != "true" ]]; then
             log_info "  Skipping (already exists): $spec_file"
             log_info "  Use --force to regenerate"
-            ((skipped_count++))
+            skipped_count=$((skipped_count + 1))
             continue
         fi
 
@@ -124,7 +124,7 @@ Run 'workflow clarify' first to generate the structured PRD."
         log_info "  Generating spec: $spec_file"
         if _generate_spec "$model" "$prd_content" "$activity_name" "$activity_section" "$spec_path" "$all_spec_files" "$project_root"; then
             log_info "  ${COLOR_GREEN}✓${COLOR_RESET} Generated: $spec_file"
-            ((generated_count++))
+            generated_count=$((generated_count + 1))
         else
             log_error "  ${COLOR_RED}✗${COLOR_RESET} Failed to generate: $spec_file"
         fi
@@ -261,11 +261,24 @@ _generate_spec() {
     local project_root="$7"
 
     # Get prompt template
-    local prompt_file="$project_root/src/prompts/PROMPT_specs.md"
+    local prompt_file
+    if [[ -f "${project_root}/src/prompts/PROMPT_specs.md" ]]; then
+        prompt_file="${project_root}/src/prompts/PROMPT_specs.md"
+    elif [[ -f "$(dirname "$WORKFLOW_BIN")/../prompts/PROMPT_specs.md" ]]; then
+        prompt_file="$(dirname "$WORKFLOW_BIN")/../prompts/PROMPT_specs.md"
+    else
+        # Use prompts from this installation
+        local script_dir
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+        prompt_file="${script_dir}/prompts/PROMPT_specs.md"
+    fi
+
     if [[ ! -f "$prompt_file" ]]; then
         log_error "Prompt template not found: $prompt_file"
         return 1
     fi
+
+    log_debug "Using prompt template: $prompt_file"
 
     # Create combined prompt with context
     local temp_prompt

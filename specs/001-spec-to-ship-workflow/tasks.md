@@ -275,8 +275,8 @@
 
 **Purpose**: Complete all 10 subcommands from cli-interface.md
 
-- [ ] T097 [P] Implement workflow diff command in src/commands/diff.sh with --milestone flag to show git diff output per cli-interface.md
-- [ ] T098 [P] Implement workflow config command in src/commands/config.sh with --edit, --get, --set flags for configuration management per cli-interface.md
+- [X] T097 [P] Implement workflow diff command in src/commands/diff.sh with --milestone flag to show git diff output per cli-interface.md
+- [X] T098 [P] Implement workflow config command in src/commands/config.sh with --edit, --get, --set flags for configuration management per cli-interface.md
 
 ---
 

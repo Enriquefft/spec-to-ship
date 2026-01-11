@@ -36,19 +36,19 @@ _sanitize_message() {
         's/sk-[a-zA-Z0-9]{32,}/[REDACTED_API_KEY]/g'
         's/ghp_[a-zA-Z0-9]{36}/[REDACTED_GITHUB_TOKEN]/g'
         's/gho_[a-zA-Z0-9]{36}/[REDACTED_GITHUB_OAUTH]/g'
-        's/AIza[0-9A-Za-z\-_]{35}/[REDACTED_GOOGLE_KEY]/g'
-        's/Bearer [a-zA-Z0-9\-._~+\/]+=*/Bearer [REDACTED_TOKEN]/g'
-        's/token[=:][[:space:]]*[a-zA-Z0-9\-._~+\/]+=*/token=[REDACTED_TOKEN]/gi'
+        's/AIza[0-9A-Za-z_-]{35}/[REDACTED_GOOGLE_KEY]/g'
+        's/Bearer [a-zA-Z0-9._~+\/-]+=*/Bearer [REDACTED_TOKEN]/g'
+        's/token[=:][[:space:]]*[a-zA-Z0-9._~+\/-]+=*/token=[REDACTED_TOKEN]/gi'
         's/password[=:][[:space:]]*[^[:space:]]+/password=[REDACTED_PASSWORD]/gi'
         's/secret[=:][[:space:]]*[^[:space:]]+/secret=[REDACTED_SECRET]/gi'
         's/apikey[=:][[:space:]]*[^[:space:]]+/apikey=[REDACTED_KEY]/gi'
         's/api_key[=:][[:space:]]*[^[:space:]]+/api_key=[REDACTED_KEY]/gi'
-        's/-----BEGIN[[:space:]].*PRIVATE KEY-----[[:space:][:print:][:space:]]*-----END[[:space:]].*PRIVATE KEY-----/[REDACTED_PRIVATE_KEY]/g'
+        's/-----BEGIN[[:space:]].*PRIVATE KEY-----.*-----END[[:space:]].*PRIVATE KEY-----/[REDACTED_PRIVATE_KEY]/g'
     )
 
-    # Apply all patterns
+    # Apply all patterns (suppress errors for portability)
     for pattern in "${patterns[@]}"; do
-        message="$(echo "$message" | sed -E "$pattern")"
+        message="$(echo "$message" | sed -E "$pattern" 2>/dev/null)" || true
     done
 
     echo "$message"

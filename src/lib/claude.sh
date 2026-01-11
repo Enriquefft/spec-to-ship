@@ -94,7 +94,7 @@ claude_invoke() {
     local exit_code
 
     # Invoke Claude with retry
-    if output=$(_retry_with_backoff claude --model "$model_name" < "$prompt_file" 2>&1); then
+    if output=$(_retry_with_backoff claude --print --model "$model_name" < "$prompt_file" 2>&1); then
         exit_code=0
     else
         exit_code=$?
@@ -158,7 +158,7 @@ claude_invoke_with_input() {
     local exit_code
 
     # Invoke Claude with retry
-    if output=$(_retry_with_backoff claude --model "$model_name" < "$temp_prompt" 2>&1); then
+    if output=$(_retry_with_backoff claude --print --model "$model_name" < "$temp_prompt" 2>&1); then
         exit_code=0
     else
         exit_code=$?
