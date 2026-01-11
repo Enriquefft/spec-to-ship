@@ -73,6 +73,12 @@ config_load() {
             [[ "$key" =~ ^[[:space:]]*# ]] && continue
             [[ -z "$key" ]] && continue
 
+            # Remove inline comments (everything after # outside quotes)
+            # Simple approach: remove # and everything after it
+            if [[ "$value" =~ ([^#]*)(#.*)? ]]; then
+                value="${BASH_REMATCH[1]}"
+            fi
+
             # Remove leading/trailing whitespace and quotes
             key="${key#"${key%%[![:space:]]*}"}"
             key="${key%"${key##*[![:space:]]}"}"

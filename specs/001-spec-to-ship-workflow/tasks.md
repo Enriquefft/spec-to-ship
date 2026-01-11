@@ -173,25 +173,25 @@
 
 ### Tests for User Story 6
 
-- [ ] T055 [P] [US6] Create BATS integration test for build command in tests/integration/test_build_loop.bats covering iteration limit, milestone filter, and Ctrl+C handling
+- [X] T055 [P] [US6] Create BATS integration test for build command in tests/integration/test_build_loop.bats covering iteration limit, milestone filter, and Ctrl+C handling
 
 ### Implementation for User Story 6
 
-- [ ] T056 [US6] Implement workflow build command in src/commands/build.sh with --max, --milestone, --hitl, --no-hitl, --hitl-timeout flags per FR-013
-- [ ] T057 [US6] Load docs/IMPLEMENTATION_PLAN.md and use plan_get_next_task to select highest-priority incomplete task per FR-013
-- [ ] T058 [US6] Implement main loop using while statement that executes exactly one task per iteration
-- [ ] T059 [US6] Load PROMPT_build.md with context from plan and invoke Claude via claude_invoke with MODEL_BUILD_PRIMARY from config
-- [ ] T060 [US6] Implement task execution: search codebase before implementing, delegate to subagents based on complexity (use MODEL_BUILD_SUBAGENT_* from config per research.md Decision 4)
-- [ ] T061 [US6] Implement backpressure validation: run tests, typecheck (shellcheck for bash), lint before allowing commit per FR-014
-- [ ] T062 [US6] Block commit when backpressure fails per FR-015 and retry fix in next iteration per acceptance scenario 2
-- [ ] T063 [US6] Update plan using plan_set_task_status to mark task done per FR-016
-- [ ] T064 [US6] Use git_atomic_commit to commit changes with descriptive message per FR-017 and research.md Decision 8
-- [ ] T065 [US6] Use git_push if BUILD_PUSH_AFTER_COMMIT is true per FR-017
-- [ ] T066 [US6] Implement Ctrl+C signal handler with trap to ensure clean exit and atomic git operations per FR-022 and acceptance scenario 5
-- [ ] T067 [US6] Support --max N to limit iterations per acceptance scenario 3 and exit with code 2 when reached per cli-interface.md
-- [ ] T068 [US6] Support --milestone filter to execute only specified milestone tasks per acceptance scenario 4
-- [ ] T069 [US6] Integrate HITL checkpoints using hitl_should_pause and hitl_prompt when enabled per acceptance scenario 1 (integration with US7)
-- [ ] T070 [US6] Add error handling and return exit codes: 0 (complete), 1 (error), 2 (max iterations) per FR-023
+- [X] T056 [US6] Implement workflow build command in src/commands/build.sh with --max, --milestone, --hitl, --no-hitl, --hitl-timeout flags per FR-013
+- [X] T057 [US6] Load docs/IMPLEMENTATION_PLAN.md and use plan_get_next_task to select highest-priority incomplete task per FR-013
+- [X] T058 [US6] Implement main loop using while statement that executes exactly one task per iteration
+- [X] T059 [US6] Load PROMPT_build.md with context from plan and invoke Claude via claude_invoke with MODEL_BUILD_PRIMARY from config
+- [X] T060 [US6] Implement task execution: search codebase before implementing, delegate to subagents based on complexity (use MODEL_BUILD_SUBAGENT_* from config per research.md Decision 4)
+- [X] T061 [US6] Implement backpressure validation: run tests, typecheck (shellcheck for bash), lint before allowing commit per FR-014
+- [X] T062 [US6] Block commit when backpressure fails per FR-015 and retry fix in next iteration per acceptance scenario 2
+- [X] T063 [US6] Update plan using plan_set_task_status to mark task done per FR-016
+- [X] T064 [US6] Use git_atomic_commit to commit changes with descriptive message per FR-017 and research.md Decision 8
+- [X] T065 [US6] Use git_push if BUILD_PUSH_AFTER_COMMIT is true per FR-017
+- [X] T066 [US6] Implement Ctrl+C signal handler with trap to ensure clean exit and atomic git operations per FR-022 and acceptance scenario 5
+- [X] T067 [US6] Support --max N to limit iterations per acceptance scenario 3 and exit with code 2 when reached per cli-interface.md
+- [X] T068 [US6] Support --milestone filter to execute only specified milestone tasks per acceptance scenario 4
+- [X] T069 [US6] Integrate HITL checkpoints using hitl_should_pause and hitl_prompt when enabled per acceptance scenario 1 (integration with US7)
+- [X] T070 [US6] Add error handling and return exit codes: 0 (complete), 1 (error), 2 (max iterations) per FR-023
 
 **Checkpoint**: User Story 6 complete - `workflow build` functional and testable independently
 
