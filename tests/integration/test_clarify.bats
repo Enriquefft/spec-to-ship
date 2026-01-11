@@ -1,6 +1,22 @@
 #!/usr/bin/env bats
 # Integration tests for workflow clarify command
 
+# Helper to check if Claude is configured and working
+_is_claude_configured() {
+    # Check if claude command exists
+    if ! command -v claude &> /dev/null; then
+        return 1
+    fi
+
+    # Try to run a quick Claude command with timeout
+    # If it hangs or fails, Claude is not properly configured
+    if timeout 5s claude --version &> /dev/null; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 setup() {
     # Create temporary test directory
     export TEST_DIR="$(mktemp -d)"
@@ -15,6 +31,13 @@ setup() {
 
     # Initialize workflow structure
     "$WORKFLOW_BIN" init
+
+    # Configure faster retries for tests
+    # Override config to reduce test execution time
+    cat >> .workflow/config <<'EOF'
+RETRY_MAX_ATTEMPTS=1
+RETRY_BASE_DELAY=1
+EOF
 }
 
 teardown() {
@@ -52,9 +75,9 @@ A tool to help users track expenses.
 EOF
 
     # Note: This will fail without actual Claude CLI, but tests the structure
-    # Skip if claude not available
-    if ! command -v claude &> /dev/null; then
-        skip "Claude CLI not installed"
+    # Skip if claude not properly configured
+    if ! _is_claude_configured; then
+        skip "Claude CLI not configured or not responding"
     fi
 
     run "$WORKFLOW_BIN" clarify --no-interactive
@@ -74,9 +97,9 @@ EOF
     # Store original content
     original_content="$(cat docs/PRD.md)"
 
-    # Skip if claude not available
-    if ! command -v claude &> /dev/null; then
-        skip "Claude CLI not installed"
+    # Skip if claude not properly configured
+    if ! _is_claude_configured; then
+        skip "Claude CLI not configured or not responding"
     fi
 
     # Run clarify (may fail, but shouldn't modify original)
@@ -94,9 +117,9 @@ EOF
 A simple test project.
 EOF
 
-    # Skip if claude not available
-    if ! command -v claude &> /dev/null; then
-        skip "Claude CLI not installed"
+    # Skip if claude not properly configured
+    if ! _is_claude_configured; then
+        skip "Claude CLI not configured or not responding"
     fi
 
     # Mock Claude response by creating structured PRD directly
@@ -144,9 +167,9 @@ EOF
 # Test Project
 EOF
 
-    # Skip if claude not available
-    if ! command -v claude &> /dev/null; then
-        skip "Claude CLI not installed"
+    # Skip if claude not properly configured
+    if ! _is_claude_configured; then
+        skip "Claude CLI not configured or not responding"
     fi
 
     # Interactive mode without TTY should handle gracefully
