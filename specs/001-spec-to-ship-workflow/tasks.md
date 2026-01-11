@@ -123,17 +123,17 @@
 
 ### Tests for User Story 4
 
-- [ ] T037 [P] [US4] Create BATS integration test for arch command in tests/integration/test_arch.bats covering generation and --review mode
+- [X] T037 [P] [US4] Create BATS integration test for arch command in tests/integration/test_arch.bats covering generation and --review mode
 
 ### Implementation for User Story 4
 
-- [ ] T038 [US4] Implement workflow arch command in src/commands/arch.sh with --review flag per FR-009
-- [ ] T039 [US4] Load all specs/*.md files and analyze for common patterns, shared data, integration points
-- [ ] T040 [US4] Load PROMPT_arch.md and invoke Claude via claude_invoke with MODEL_ARCH from config
-- [ ] T041 [US4] Generate docs/ARCHITECTURE.md with sections: Component Map, Interface Contracts, Data Models, Conventions (with code examples), Non-Functional Requirements per data-model.md Architecture Document entity
-- [ ] T042 [US4] Implement interactive refinement session for --review flag using hitl_prompt
-- [ ] T043 [US4] Add warning mechanism to detect architecture modifications and recommend plan regeneration per acceptance scenario 3
-- [ ] T044 [US4] Add error handling for no specs found per cli-interface.md
+- [X] T038 [US4] Implement workflow arch command in src/commands/arch.sh with --review flag per FR-009
+- [X] T039 [US4] Load all specs/*.md files and analyze for common patterns, shared data, integration points
+- [X] T040 [US4] Load PROMPT_arch.md and invoke Claude via claude_invoke with MODEL_ARCH from config
+- [X] T041 [US4] Generate docs/ARCHITECTURE.md with sections: Component Map, Interface Contracts, Data Models, Conventions (with code examples), Non-Functional Requirements per data-model.md Architecture Document entity
+- [X] T042 [US4] Implement interactive refinement session for --review flag using hitl_prompt
+- [X] T043 [US4] Add warning mechanism to detect architecture modifications and recommend plan regeneration per acceptance scenario 3
+- [X] T044 [US4] Add error handling for no specs found per cli-interface.md
 
 **Checkpoint**: User Story 4 complete - `workflow arch` functional and testable independently
 
