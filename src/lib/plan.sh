@@ -10,10 +10,11 @@ source "${LIB_DIR}/common.sh"
 PLAN_FILE=""
 
 # Plan data structure (associative arrays)
-declare -A PLAN_TASKS
-declare -A PLAN_TASK_STATUS
-declare -A PLAN_TASK_DEPS
-declare -A PLAN_TASK_MILESTONE
+# Initialize with dummy values to avoid unbound variable errors with set -u
+declare -A PLAN_TASKS=()
+declare -A PLAN_TASK_STATUS=()
+declare -A PLAN_TASK_DEPS=()
+declare -A PLAN_TASK_MILESTONE=()
 
 # _find_plan_file() - Locate implementation plan file
 _find_plan_file() {
@@ -112,7 +113,8 @@ plan_load() {
         fi
     done < "$PLAN_FILE"
 
-    log_info "Loaded ${#PLAN_TASKS[@]} tasks from plan"
+    local task_count=${#PLAN_TASKS[@]}
+    log_info "Loaded $task_count tasks from plan"
     return 0
 }
 
