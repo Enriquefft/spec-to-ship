@@ -91,54 +91,419 @@ workflow status
 
 ## Usage
 
-### Available Commands
-
-- `workflow init` - Initialize project structure
-- `workflow clarify` - Transform rough PRD into structured format
-- `workflow specs` - Generate spec files from structured PRD
-- `workflow arch` - Generate architecture document
-- `workflow plan` - Generate implementation plan
-- `workflow build` - Execute autonomous build loop
-- `workflow gate` - Run milestone validation
-- `workflow status` - Show current workflow state
-- `workflow diff` - Show changes since last milestone
-- `workflow config` - Manage configuration
-
 ### Global Options
 
-- `--verbose` - Enable debug output
-- `--config PATH` - Use custom config file
-- `--help` - Show help message
-- `--version` - Show version
+Use these options before the subcommand:
 
-### Examples
+- `--verbose` - Enable debug output to stderr
+- `-c, --config PATH` - Use custom config file location
+- `-h, --help` - Show help message
+- `-v, --version` - Show version
 
-#### Basic Workflow
+Example: `workflow --verbose build --max 10`
+
+### Commands Reference
+
+#### 1. `workflow init` - Initialize Project
+
+Initialize a new project with Spec-to-Ship directory structure.
+
+**Options:**
+- `--from FILE` - Copy existing PRD file to docs/PRD.md
+- `--force` - Overwrite existing files
+- `--help` - Show help
+
+**Examples:**
 ```bash
+# Basic initialization
 workflow init
+
+# Initialize with existing PRD
+workflow init --from requirements.md
+
+# Force reinitialize (overwrites existing files)
+workflow init --force
+```
+
+**Creates:**
+- `.workflow/` - Configuration and logs
+- `docs/` - Documentation directory
+- `specs/` - Specifications directory
+- `src/`, `src/lib/` - Source code directories
+- `.workflow/config.sh` - Default configuration
+- `docs/PRD.md` - PRD template
+
+---
+
+#### 2. `workflow clarify` - Clarify Requirements
+
+Transform a rough PRD into a structured document with audiences, JTBDs, activities, and acceptance criteria.
+
+**Options:**
+- `--no-interactive` - Skip interactive clarification loop
+- `--help` - Show help
+
+**Examples:**
+```bash
+# Interactive clarification (default)
+workflow clarify
+
+# Non-interactive mode (uses PRD as-is)
+workflow clarify --no-interactive
+```
+
+**Requires:** `docs/PRD.md`
+**Creates:** `docs/PRD_STRUCTURED.md`
+
+**Interactive Mode:**
+- Claude asks clarifying questions (max 10 rounds)
+- You provide answers to refine requirements
+- Original PRD.md remains unchanged
+
+---
+
+#### 3. `workflow specs` - Generate Specifications
+
+Generate one specification file per activity from the structured PRD.
+
+**Options:**
+- `--force` - Regenerate existing spec files
+- `--help` - Show help
+
+**Examples:**
+```bash
+# Generate specs (skips existing)
+workflow specs
+
+# Regenerate all specs
+workflow specs --force
+```
+
+**Requires:** `docs/PRD_STRUCTURED.md`
+**Creates:** `specs/{activity-slug}.md` (one per activity)
+
+**Spec files include:**
+- Summary and dependencies
+- Technical design
+- Acceptance criteria
+- Test plan
+
+---
+
+#### 4. `workflow arch` - Generate Architecture
+
+Create a unified architecture document from all specifications.
+
+**Options:**
+- `--review` - Enter interactive review mode
+- `--help` - Show help
+
+**Examples:**
+```bash
+# Generate architecture
+workflow arch
+
+# Generate with interactive refinement
+workflow arch --review
+```
+
+**Requires:** `specs/*.md` (one or more spec files)
+**Creates:** `docs/ARCHITECTURE.md`
+
+**Architecture includes:**
+- Component map
+- Interface contracts
+- Data models
+- Coding conventions
+- Non-functional requirements
+
+---
+
+#### 5. `workflow plan` - Generate Implementation Plan
+
+Generate a prioritized, milestone-based implementation plan with task dependencies.
+
+**Options:**
+- `--regen` - Regenerate from scratch
+- `--milestone NAME` - Filter specific milestone
+- `--help` - Show help
+
+**Examples:**
+```bash
+# Generate plan
+workflow plan
+
+# Regenerate completely
+workflow plan --regen
+
+# Show specific milestone
+workflow plan --milestone M1
+```
+
+**Requires:**
+- `specs/*.md`
+- `docs/ARCHITECTURE.md`
+
+**Creates:** `docs/IMPLEMENTATION_PLAN.md`
+
+**Plan includes:**
+- Milestone-based SLC slices
+- Ordered tasks with dependencies
+- Test requirements per task
+- Task state tracking (pending/in_progress/done/blocked)
+
+---
+
+#### 6. `workflow build` - Execute Build Loop
+
+Run the autonomous implementation loop, executing tasks one at a time with validation.
+
+**Options:**
+- `--max N` - Limit to N iterations (default: unlimited)
+- `--milestone NAME` - Only execute tasks for specific milestone
+- `--hitl MODE` - Enable human-in-the-loop (task|milestone|uncertain|every:N)
+- `--no-hitl` - Disable HITL even if configured
+- `--hitl-timeout DURATION` - Auto-continue after timeout (e.g., "5m", "1h")
+- `--help` - Show help
+
+**Examples:**
+```bash
+# Basic autonomous build
+workflow build
+
+# Limited iterations
+workflow build --max 10
+
+# Milestone-specific build
+workflow build --milestone M1
+
+# With human oversight (pause after each task)
+workflow build --hitl task
+
+# Pause after milestones
+workflow build --hitl milestone
+
+# Pause every 5 iterations
+workflow build --hitl every:5
+
+# With timeout (auto-continue after 5 minutes)
+workflow build --hitl milestone --hitl-timeout 5m
+
+# Disable HITL for this run
+workflow build --no-hitl
+```
+
+**Requires:** `docs/IMPLEMENTATION_PLAN.md`
+**Updates:** Task states in plan, creates commits
+
+**Build loop:**
+1. Select highest-priority incomplete task
+2. Execute task (search codebase, implement, test)
+3. Validate (run tests, lint, typecheck)
+4. Commit changes atomically
+5. Update plan status
+6. Repeat
+
+**Exit codes:**
+- 0: All tasks complete
+- 1: Error occurred
+- 2: Max iterations reached
+
+---
+
+#### 7. `workflow gate` - Milestone Validation
+
+Validate that a milestone is complete by checking acceptance criteria and running tests.
+
+**Options:**
+- `--milestone NAME` - Validate specific milestone (default: current)
+- `--force` - Proceed even if validation fails
+- `--help` - Show help
+
+**Examples:**
+```bash
+# Validate current milestone
+workflow gate
+
+# Validate specific milestone
+workflow gate --milestone M1
+
+# Validate and proceed despite failures (not recommended)
+workflow gate --force
+```
+
+**Requires:**
+- `docs/IMPLEMENTATION_PLAN.md`
+- All milestone tasks marked as done
+
+**Creates:** `docs/gates/M{n}-gate-report.md`
+
+**Validation includes:**
+- Running full test suite
+- Checking acceptance criteria
+- Generating pass/fail report
+- Recommendations (proceed/rework/update-architecture)
+
+**Exit codes:**
+- 0: Validation passed
+- 1: Validation failed
+- 2: Failed but forced (with --force)
+
+---
+
+#### 8. `workflow status` - Show Status
+
+Display current workflow state including phase, milestone progress, and HITL status.
+
+**Options:**
+- `--help` - Show help
+
+**Examples:**
+```bash
+# Show current status
+workflow status
+```
+
+**Output includes:**
+- Current phase (Requirements/Architecture/Planning/Execution/Complete)
+- Status description
+- Current milestone with task completion (N/M tasks)
+- HITL status (enabled/disabled, waiting/not waiting)
+
+**Example output:**
+```
+Phase: Execution
+Status: Building implementation
+Milestone: M2 (5/12 tasks complete)
+HITL: enabled (not waiting)
+```
+
+---
+
+#### 9. `workflow diff` - Show Changes
+
+Show git diff of changes since the last milestone or for a specific milestone.
+
+**Options:**
+- `--milestone NAME` - Show changes for specific milestone
+- `--help` - Show help
+
+**Examples:**
+```bash
+# Show uncommitted changes
+workflow diff
+
+# Show changes for milestone M1
+workflow diff --milestone M1
+```
+
+**Shows:**
+- Staged and unstaged changes (default)
+- All commits for a milestone (with --milestone)
+
+---
+
+#### 10. `workflow config` - Manage Configuration
+
+View and modify workflow configuration settings.
+
+**Options:**
+- `--get KEY` - Get specific configuration value
+- `--set KEY=VALUE` - Set configuration value (persists to file)
+- `--edit` - Open config file in $EDITOR
+- `--help` - Show help
+
+**Examples:**
+```bash
+# Show all configuration
+workflow config
+
+# Get specific value
+workflow config --get MODEL_BUILD_PRIMARY
+
+# Set a value
+workflow config --set MODEL_BUILD_PRIMARY=sonnet
+workflow config --set HITL_ENABLED=true
+workflow config --set HITL_MODE=milestone
+
+# Edit configuration interactively
+workflow config --edit
+```
+
+**Configuration keys:**
+- **Model Settings:** `MODEL_CLARIFY`, `MODEL_SPECS`, `MODEL_ARCH`, `MODEL_PLAN`, `MODEL_BUILD_PRIMARY`, `MODEL_BUILD_SECONDARY`, `MODEL_GATE`, `MODEL_FEEDBACK`
+- **HITL Settings:** `HITL_ENABLED`, `HITL_MODE`, `HITL_TIMEOUT`
+- **Build Settings:** `BUILD_MAX_ITERATIONS`, `BUILD_BACKPRESSURE_TESTS`, `BUILD_BACKPRESSURE_TYPECHECK`, `BUILD_BACKPRESSURE_LINT`
+- **Retry Settings:** `RETRY_MAX_ATTEMPTS`, `RETRY_BASE_DELAY`
+
+**Valid values:**
+- Models: `opus`, `sonnet`, `haiku`
+- HITL modes: `task`, `milestone`, `uncertain`, `every:N`
+- Booleans: `true`, `false`
+- Integers: positive numbers
+
+---
+
+### Common Workflows
+
+#### Complete End-to-End
+
+```bash
+# 1. Initialize
+workflow init
+
+# 2. Edit docs/PRD.md with your requirements
+
+# 3. Run full workflow
 workflow clarify
 workflow specs
 workflow arch
 workflow plan
 workflow build
+
+# 4. Validate milestones
+workflow gate --milestone M1
+workflow gate --milestone M2
+
+# 5. Check status anytime
+workflow status
 ```
 
-#### With Human-in-the-Loop
+#### Iterative Development with HITL
+
 ```bash
-# Pause after each milestone
-workflow build --hitl milestone
+# Initial setup
+workflow init
+# Edit docs/PRD.md
+workflow clarify
+workflow specs
+workflow arch
+workflow plan
 
-# Pause after uncertain decisions
-workflow build --hitl uncertain
+# Build with oversight
+workflow build --hitl milestone --max 10
 
-# Pause every 5 iterations
-workflow build --hitl every:5
+# After each milestone:
+workflow gate
+workflow status
+workflow diff --milestone M1
+
+# Continue next milestone
+workflow build --hitl milestone --max 10
 ```
 
-#### Limited Build Iterations
+#### Configuration Tuning
+
 ```bash
-# Run maximum 10 build iterations
-workflow build --max 10
+# Use faster models for iteration
+workflow config --set MODEL_BUILD_PRIMARY=sonnet
+
+# Enable HITL for uncertain situations only
+workflow config --set HITL_ENABLED=true
+workflow config --set HITL_MODE=uncertain
+
+# Disable typecheck if not applicable
+workflow config --set BUILD_BACKPRESSURE_TYPECHECK=false
 ```
 
 ## Configuration

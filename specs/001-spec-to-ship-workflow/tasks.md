@@ -291,8 +291,8 @@
 - [X] T103 [P] Create test fixtures: tests/fixtures/sample_prd.md, sample_spec.md, sample_plan.md per quickstart.md
 - [X] T104 [P] Add shellcheck compliance validation to all .sh files per plan.md Technical Context
 - [X] T105 [P] Create installation script or instructions for making workflow command globally available
-- [ ] T106 Run full test suite with `bats tests/` and verify all acceptance scenarios pass
-- [ ] T107 Update README.md with usage examples for all 10 subcommands
+- [X] T106 Run full test suite with `bats tests/` and verify all acceptance scenarios pass
+- [X] T107 Update README.md with usage examples for all 10 subcommands
 - [X] T108 [P] Document edge case handling in README or docs/: mid-commit interruption, Claude rate limits, missing dependencies, subdirectory detection per spec.md Edge Cases
 
 ---

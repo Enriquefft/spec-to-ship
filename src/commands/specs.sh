@@ -283,7 +283,7 @@ _generate_spec() {
     # Create combined prompt with context
     local temp_prompt
     temp_prompt="$(mktemp)"
-    trap 'rm -f "$temp_prompt"' EXIT
+    trap 'rm -f "${temp_prompt:-}"' EXIT
 
     {
         cat "$prompt_file"
