@@ -27,13 +27,43 @@ _timestamp() {
     date '+%Y-%m-%d %H:%M:%S'
 }
 
+# Sanitize message to remove secrets
+_sanitize_message() {
+    local message="$1"
+
+    # Define secret patterns to redact
+    local patterns=(
+        's/sk-[a-zA-Z0-9]{32,}/[REDACTED_API_KEY]/g'
+        's/ghp_[a-zA-Z0-9]{36}/[REDACTED_GITHUB_TOKEN]/g'
+        's/gho_[a-zA-Z0-9]{36}/[REDACTED_GITHUB_OAUTH]/g'
+        's/AIza[0-9A-Za-z\-_]{35}/[REDACTED_GOOGLE_KEY]/g'
+        's/Bearer [a-zA-Z0-9\-._~+\/]+=*/Bearer [REDACTED_TOKEN]/g'
+        's/token[=:][[:space:]]*[a-zA-Z0-9\-._~+\/]+=*/token=[REDACTED_TOKEN]/gi'
+        's/password[=:][[:space:]]*[^[:space:]]+/password=[REDACTED_PASSWORD]/gi'
+        's/secret[=:][[:space:]]*[^[:space:]]+/secret=[REDACTED_SECRET]/gi'
+        's/apikey[=:][[:space:]]*[^[:space:]]+/apikey=[REDACTED_KEY]/gi'
+        's/api_key[=:][[:space:]]*[^[:space:]]+/api_key=[REDACTED_KEY]/gi'
+        's/-----BEGIN[[:space:]].*PRIVATE KEY-----[[:space:][:print:][:space:]]*-----END[[:space:]].*PRIVATE KEY-----/[REDACTED_PRIVATE_KEY]/g'
+    )
+
+    # Apply all patterns
+    for pattern in "${patterns[@]}"; do
+        message="$(echo "$message" | sed -E "$pattern")"
+    done
+
+    echo "$message"
+}
+
 # Log to file if LOG_FILE is set
 _log_to_file() {
     local level="$1"
     local message="$2"
 
     if [[ -n "$LOG_FILE" ]]; then
-        echo "[$(_timestamp)] [$level] [$COMPONENT] $message" >> "$LOG_FILE"
+        # Sanitize message before writing to file
+        local sanitized_message
+        sanitized_message="$(_sanitize_message "$message")"
+        echo "[$(_timestamp)] [$level] [$COMPONENT] $sanitized_message" >> "$LOG_FILE"
     fi
 }
 

@@ -205,19 +205,19 @@
 
 ### Tests for User Story 7
 
-- [ ] T071 [P] [US7] Create BATS integration test for HITL modes in tests/integration/test_hitl.bats covering task, milestone, uncertain, every:N modes
+- [X] T071 [P] [US7] Create BATS integration test for HITL modes in tests/integration/test_hitl.bats covering task, milestone, uncertain, every:N modes
 
 ### Implementation for User Story 7
 
-- [ ] T072 [US7] Implement --hitl flag parsing in src/commands/build.sh to set HITL_MODE (task, milestone, uncertain, every:N) per FR-018
-- [ ] T073 [US7] Implement task-level HITL: pause after each task, show changes, prompt "Approve commit? [y/n/edit/skip]" per acceptance scenario 2
-- [ ] T074 [US7] Implement milestone-level HITL: pause after milestone completion, prompt "Proceed to next milestone? [y/n/rework/replan]" per acceptance scenario 1
-- [ ] T075 [US7] Implement uncertain HITL: detect agent uncertainty markers and pause with clarifying question per acceptance scenario 3
-- [ ] T076 [US7] Implement every:N HITL: pause every N iterations per acceptance scenario 4
-- [ ] T077 [US7] Implement response handling: y/yes (approve), n/no (rollback and retry), skip, edit per acceptance scenario 5
-- [ ] T078 [US7] Implement --hitl-timeout using read -t timeout in hitl_prompt per acceptance scenario 6
-- [ ] T079 [US7] Log all HITL interactions to docs/hitl-log.md using hitl_log function per FR-019 and data-model.md HITL Log entity format
-- [ ] T080 [US7] Add error handling for invalid HITL modes per cli-interface.md
+- [X] T072 [US7] Implement --hitl flag parsing in src/commands/build.sh to set HITL_MODE (task, milestone, uncertain, every:N) per FR-018
+- [X] T073 [US7] Implement task-level HITL: pause after each task, show changes, prompt "Approve commit? [y/n/edit/skip]" per acceptance scenario 2
+- [X] T074 [US7] Implement milestone-level HITL: pause after milestone completion, prompt "Proceed to next milestone? [y/n/rework/replan]" per acceptance scenario 1
+- [X] T075 [US7] Implement uncertain HITL: detect agent uncertainty markers and pause with clarifying question per acceptance scenario 3
+- [X] T076 [US7] Implement every:N HITL: pause every N iterations per acceptance scenario 4
+- [X] T077 [US7] Implement response handling: y/yes (approve), n/no (rollback and retry), skip, edit per acceptance scenario 5
+- [X] T078 [US7] Implement --hitl-timeout using read -t timeout in hitl_prompt per acceptance scenario 6
+- [X] T079 [US7] Log all HITL interactions to docs/hitl-log.md using hitl_log function per FR-019 and data-model.md HITL Log entity format
+- [X] T080 [US7] Add error handling for invalid HITL modes per cli-interface.md
 
 **Checkpoint**: User Story 7 complete - `workflow build --hitl` functional and testable independently
 
@@ -231,18 +231,18 @@
 
 ### Tests for User Story 8
 
-- [ ] T081 [P] [US8] Create BATS integration test for gate command in tests/integration/test_gate.bats covering validation, blocking, and --force modes
+- [X] T081 [P] [US8] Create BATS integration test for gate command in tests/integration/test_gate.bats covering validation, blocking, and --force modes
 
 ### Implementation for User Story 8
 
-- [ ] T082 [US8] Implement workflow gate command in src/commands/gate.sh with --milestone and --force flags per FR-020
-- [ ] T083 [US8] Load docs/IMPLEMENTATION_PLAN.md and extract milestone definition with acceptance criteria
-- [ ] T084 [US8] Run full test suite using BATS framework per quickstart.md
-- [ ] T085 [US8] Check acceptance criteria (automated where possible) comparing actual vs expected outcomes
-- [ ] T086 [US8] Generate docs/gates/M{n}-gate-report.md with timestamp, tests_passed, tests_failed, criteria_status, recommendation (proceed/rework/update-architecture), details per data-model.md Gate Report entity
-- [ ] T087 [US8] Block `workflow build` for next milestone when gate fails per acceptance scenario 2
-- [ ] T088 [US8] Allow --force to proceed despite gate failure with prominent warning per acceptance scenario 3 and exit code 2
-- [ ] T089 [US8] Add error handling and return exit codes: 0 (passed), 1 (failed), 2 (failed but --force) per cli-interface.md
+- [X] T082 [US8] Implement workflow gate command in src/commands/gate.sh with --milestone and --force flags per FR-020
+- [X] T083 [US8] Load docs/IMPLEMENTATION_PLAN.md and extract milestone definition with acceptance criteria
+- [X] T084 [US8] Run full test suite using BATS framework per quickstart.md
+- [X] T085 [US8] Check acceptance criteria (automated where possible) comparing actual vs expected outcomes
+- [X] T086 [US8] Generate docs/gates/M{n}-gate-report.md with timestamp, tests_passed, tests_failed, criteria_status, recommendation (proceed/rework/update-architecture), details per data-model.md Gate Report entity
+- [X] T087 [US8] Block `workflow build` for next milestone when gate fails per acceptance scenario 2
+- [X] T088 [US8] Allow --force to proceed despite gate failure with prominent warning per acceptance scenario 3 and exit code 2
+- [X] T089 [US8] Add error handling and return exit codes: 0 (passed), 1 (failed), 2 (failed but --force) per cli-interface.md
 
 **Checkpoint**: User Story 8 complete - `workflow gate` functional and testable independently
 
@@ -256,16 +256,16 @@
 
 ### Tests for User Story 9
 
-- [ ] T090 [P] [US9] Create BATS integration test for status command in tests/integration/test_status.bats covering different workflow states
+- [X] T090 [P] [US9] Create BATS integration test for status command in tests/integration/test_status.bats covering different workflow states
 
 ### Implementation for User Story 9
 
-- [ ] T091 [US9] Implement workflow status command in src/commands/status.sh (no flags required)
-- [ ] T092 [US9] Detect current workflow phase by checking existence of key files: docs/PRD.md (Requirements), docs/ARCHITECTURE.md (Architecture), docs/IMPLEMENTATION_PLAN.md (Planning/Execution)
-- [ ] T093 [US9] Parse plan file to determine current milestone and count completed/total tasks per cli-interface.md output format
-- [ ] T094 [US9] Check HITL status using hitl_is_enabled and detect if waiting for user input
-- [ ] T095 [US9] Format output as: Phase: [phase name], Status: [description], Milestone: [current] ([N/M] tasks complete), HITL: [enabled/disabled] ([waiting/not waiting]) per cli-interface.md example
-- [ ] T096 [US9] Add error handling and return exit code 0 per cli-interface.md
+- [X] T091 [US9] Implement workflow status command in src/commands/status.sh (no flags required)
+- [X] T092 [US9] Detect current workflow phase by checking existence of key files: docs/PRD.md (Requirements), docs/ARCHITECTURE.md (Architecture), docs/IMPLEMENTATION_PLAN.md (Planning/Execution)
+- [X] T093 [US9] Parse plan file to determine current milestone and count completed/total tasks per cli-interface.md output format
+- [X] T094 [US9] Check HITL status using hitl_is_enabled and detect if waiting for user input
+- [X] T095 [US9] Format output as: Phase: [phase name], Status: [description], Milestone: [current] ([N/M] tasks complete), HITL: [enabled/disabled] ([waiting/not waiting]) per cli-interface.md example
+- [X] T096 [US9] Add error handling and return exit code 0 per cli-interface.md
 
 **Checkpoint**: User Story 9 complete - `workflow status` functional and testable independently
 
@@ -284,16 +284,16 @@
 
 **Purpose**: Final improvements affecting multiple user stories
 
-- [ ] T099 [P] Add session logging to .workflow/logs/ with timestamp-based filenames per FR-024 and research.md Decision 7
-- [ ] T100 [P] Implement --verbose flag handling in src/workflow to enable debug output per FR-025
-- [ ] T101 [P] Add environment variable validation to prevent secrets in config files per FR-026 and research.md Decision 3
-- [ ] T102 [P] Add secrets filtering in logging to never write secrets to logs or git per FR-027
-- [ ] T103 [P] Create test fixtures: tests/fixtures/sample_prd.md, sample_spec.md, sample_plan.md per quickstart.md
-- [ ] T104 [P] Add shellcheck compliance validation to all .sh files per plan.md Technical Context
-- [ ] T105 [P] Create installation script or instructions for making workflow command globally available
+- [X] T099 [P] Add session logging to .workflow/logs/ with timestamp-based filenames per FR-024 and research.md Decision 7
+- [X] T100 [P] Implement --verbose flag handling in src/workflow to enable debug output per FR-025
+- [X] T101 [P] Add environment variable validation to prevent secrets in config files per FR-026 and research.md Decision 3
+- [X] T102 [P] Add secrets filtering in logging to never write secrets to logs or git per FR-027
+- [X] T103 [P] Create test fixtures: tests/fixtures/sample_prd.md, sample_spec.md, sample_plan.md per quickstart.md
+- [X] T104 [P] Add shellcheck compliance validation to all .sh files per plan.md Technical Context
+- [X] T105 [P] Create installation script or instructions for making workflow command globally available
 - [ ] T106 Run full test suite with `bats tests/` and verify all acceptance scenarios pass
 - [ ] T107 Update README.md with usage examples for all 10 subcommands
-- [ ] T108 [P] Document edge case handling in README or docs/: mid-commit interruption, Claude rate limits, missing dependencies, subdirectory detection per spec.md Edge Cases
+- [X] T108 [P] Document edge case handling in README or docs/: mid-commit interruption, Claude rate limits, missing dependencies, subdirectory detection per spec.md Edge Cases
 
 ---
 

@@ -15,7 +15,13 @@
       "Bash(/home/hybridz/Projects/spec-to-ship/src/workflow clarify:*)",
       "Bash(nix develop:*)",
       "Bash(bats:*)",
-      "Bash(command -v:*)"
+      "Bash(command -v:*)",
+      "Bash(if [ -d \"/home/hybridz/Projects/spec-to-ship/specs/001-spec-to-ship-workflow/checklists\" ])",
+      "Bash(then find /home/hybridz/Projects/spec-to-ship/specs/001-spec-to-ship-workflow/checklists -name \"*.md\" -type f)",
+      "Bash(else echo \"No checklists directory found\")",
+      "Bash(fi)",
+      "Bash(shellcheck:*)",
+      "Bash(./check-shellcheck.sh:*)"
     ],
     "deny": [],
     "ask": []

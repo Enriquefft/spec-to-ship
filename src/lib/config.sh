@@ -136,9 +136,53 @@ config_set() {
     return 0
 }
 
+# config_validate_no_secrets() - Ensure no secrets in configuration values
+config_validate_no_secrets() {
+    local errors=0
+    local secret_patterns=(
+        "sk-[a-zA-Z0-9]{32,}"           # OpenAI/Anthropic API keys
+        "ghp_[a-zA-Z0-9]{36}"            # GitHub personal access tokens
+        "gho_[a-zA-Z0-9]{36}"            # GitHub OAuth tokens
+        "AIza[0-9A-Za-z\\-_]{35}"        # Google API keys
+        "[0-9a-f]{32}"                   # MD5 hashes (common for tokens)
+        "[0-9a-f]{40}"                   # SHA1 hashes
+        "[0-9a-f]{64}"                   # SHA256 hashes
+        "-----BEGIN.*PRIVATE KEY-----"   # Private keys
+    )
+
+    for key in "${!CONFIG[@]}"; do
+        local value="${CONFIG[$key]}"
+
+        # Skip empty values and known safe values
+        [[ -z "$value" ]] && continue
+        [[ "$value" =~ ^(true|false|[0-9]+|opus|sonnet|haiku|task|milestone|uncertain)$ ]] && continue
+
+        # Check against secret patterns
+        for pattern in "${secret_patterns[@]}"; do
+            if [[ "$value" =~ $pattern ]]; then
+                log_error "Configuration key '$key' appears to contain a secret (matches pattern: $pattern)"
+                log_error "Secrets should be stored in environment variables like WORKFLOW_${key}, not in config files"
+                ((errors++))
+                break
+            fi
+        done
+    done
+
+    if [[ $errors -gt 0 ]]; then
+        return 1
+    fi
+
+    return 0
+}
+
 # config_validate() - Validate all configuration values
 config_validate() {
     local errors=0
+
+    # Validate no secrets in config
+    if ! config_validate_no_secrets; then
+        ((errors++))
+    fi
 
     # Validate model selections
     for key in MODEL_CLARIFY MODEL_SPECS MODEL_ARCH MODEL_PLAN MODEL_BUILD_PRIMARY MODEL_BUILD_SECONDARY MODEL_GATE MODEL_FEEDBACK; do
