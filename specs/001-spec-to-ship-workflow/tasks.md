@@ -76,16 +76,16 @@
 
 ### Tests for User Story 2
 
-- [ ] T022 [P] [US2] Create BATS integration test for clarify command in tests/integration/test_clarify.bats covering interactive and --no-interactive modes
+- [X] T022 [P] [US2] Create BATS integration test for clarify command in tests/integration/test_clarify.bats covering interactive and --no-interactive modes
 
 ### Implementation for User Story 2
 
-- [ ] T023 [US2] Implement workflow clarify command in src/commands/clarify.sh with --no-interactive flag support per FR-005
-- [ ] T024 [US2] Load PROMPT_clarify.md and invoke Claude via claude_invoke with model from config (MODEL_CLARIFY) per research.md Decision 4
-- [ ] T025 [US2] Implement interactive question loop (max 10 rounds per FR-006) using hitl_prompt for user responses
-- [ ] T026 [US2] Parse Claude output and generate docs/PRD_STRUCTURED.md with Audience, JTBDs, Activities, Acceptance Criteria sections per data-model.md Structured PRD entity
-- [ ] T027 [US2] Verify original docs/PRD.md remains unchanged per acceptance scenario 4
-- [ ] T028 [US2] Add error handling for missing PRD and Claude API failures per cli-interface.md exit codes
+- [X] T023 [US2] Implement workflow clarify command in src/commands/clarify.sh with --no-interactive flag support per FR-005
+- [X] T024 [US2] Load PROMPT_clarify.md and invoke Claude via claude_invoke with model from config (MODEL_CLARIFY) per research.md Decision 4
+- [X] T025 [US2] Implement interactive question loop (max 10 rounds per FR-006) using hitl_prompt for user responses
+- [X] T026 [US2] Parse Claude output and generate docs/PRD_STRUCTURED.md with Audience, JTBDs, Activities, Acceptance Criteria sections per data-model.md Structured PRD entity
+- [X] T027 [US2] Verify original docs/PRD.md remains unchanged per acceptance scenario 4
+- [X] T028 [US2] Add error handling for missing PRD and Claude API failures per cli-interface.md exit codes
 
 **Checkpoint**: User Story 2 complete - `workflow clarify` functional and testable independently
 
