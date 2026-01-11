@@ -262,23 +262,9 @@ _generate_spec() {
 
     # Get prompt template
     local prompt_file
-    if [[ -f "${project_root}/src/prompts/PROMPT_specs.md" ]]; then
-        prompt_file="${project_root}/src/prompts/PROMPT_specs.md"
-    elif [[ -f "$(dirname "$WORKFLOW_BIN")/../prompts/PROMPT_specs.md" ]]; then
-        prompt_file="$(dirname "$WORKFLOW_BIN")/../prompts/PROMPT_specs.md"
-    else
-        # Use prompts from this installation
-        local script_dir
-        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-        prompt_file="${script_dir}/prompts/PROMPT_specs.md"
-    fi
-
-    if [[ ! -f "$prompt_file" ]]; then
-        log_error "Prompt template not found: $prompt_file"
+    if ! prompt_file="$(resolve_prompt_template "PROMPT_specs.md" "$project_root")"; then
         return 1
     fi
-
-    log_debug "Using prompt template: $prompt_file"
 
     # Create combined prompt with context
     local temp_prompt

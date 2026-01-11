@@ -192,3 +192,36 @@ parse_opt() {
     opt="$1"
     return 0
 }
+
+# resolve_prompt_template(prompt_name, project_root) - Resolve path to prompt template
+# Arguments:
+#   prompt_name: Name of prompt file (e.g., "PROMPT_clarify.md")
+#   project_root: Project root directory
+# Returns: Absolute path to prompt template file
+resolve_prompt_template() {
+    local prompt_name="$1"
+    local project_root="$2"
+    local prompt_file
+
+    # Check project-specific prompts first
+    if [[ -f "${project_root}/src/prompts/${prompt_name}" ]]; then
+        prompt_file="${project_root}/src/prompts/${prompt_name}"
+    # Check workflow installation via WORKFLOW_BIN
+    elif [[ -n "${WORKFLOW_BIN:-}" ]] && [[ -f "$(dirname "$WORKFLOW_BIN")/../prompts/${prompt_name}" ]]; then
+        prompt_file="$(dirname "$WORKFLOW_BIN")/../prompts/${prompt_name}"
+    else
+        # Fallback: use prompts from current script location
+        local script_dir
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")/.." && pwd)"
+        prompt_file="${script_dir}/prompts/${prompt_name}"
+    fi
+
+    if [[ ! -f "$prompt_file" ]]; then
+        log_error "Prompt template not found: $prompt_file"
+        return 1
+    fi
+
+    log_debug "Resolved prompt template: $prompt_file"
+    echo "$prompt_file"
+    return 0
+}

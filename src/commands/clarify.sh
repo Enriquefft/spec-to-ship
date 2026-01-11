@@ -107,22 +107,9 @@ cmd_clarify() {
 
     # Get prompt template
     local prompt_file
-    if [[ -f "${project_root}/src/prompts/PROMPT_clarify.md" ]]; then
-        prompt_file="${project_root}/src/prompts/PROMPT_clarify.md"
-    elif [[ -f "$(dirname "$WORKFLOW_BIN")/../prompts/PROMPT_clarify.md" ]]; then
-        prompt_file="$(dirname "$WORKFLOW_BIN")/../prompts/PROMPT_clarify.md"
-    else
-        # Use prompts from this installation
-        local script_dir
-        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-        prompt_file="${script_dir}/prompts/PROMPT_clarify.md"
+    if ! prompt_file="$(resolve_prompt_template "PROMPT_clarify.md" "$project_root")"; then
+        die "Prompt template not found"
     fi
-
-    if [[ ! -f "$prompt_file" ]]; then
-        die "Prompt template not found: $prompt_file"
-    fi
-
-    log_debug "Using prompt template: $prompt_file"
 
     # Get model for clarify phase
     local model

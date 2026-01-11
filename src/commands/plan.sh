@@ -254,9 +254,9 @@ _plan_generate() {
     local -a spec_files=("$@")
 
     # Get prompt template
-    local prompt_file="$project_root/src/prompts/PROMPT_plan.md"
-    if [[ ! -f "$prompt_file" ]]; then
-        die "Prompt template not found: $prompt_file"
+    local prompt_file
+    if ! prompt_file="$(resolve_prompt_template "PROMPT_plan.md" "$project_root")"; then
+        die "Prompt template not found"
     fi
 
     # Load architecture
@@ -282,7 +282,7 @@ _plan_generate() {
     # Create combined prompt
     local temp_prompt
     temp_prompt="$(mktemp)"
-    trap 'rm -f "$temp_prompt"' EXIT
+    trap 'rm -f "${temp_prompt:-}"' EXIT
 
     {
         cat "$prompt_file"
@@ -358,12 +358,15 @@ _plan_generate_milestone() {
     existing_plan="$(cat "$plan_file")"
 
     # Get prompt template
-    local prompt_file="$project_root/src/prompts/PROMPT_plan.md"
+    local prompt_file
+    if ! prompt_file="$(resolve_prompt_template "PROMPT_plan.md" "$project_root")"; then
+        die "Prompt template not found"
+    fi
 
     # Create milestone-specific prompt
     local temp_prompt
     temp_prompt="$(mktemp)"
-    trap 'rm -f "$temp_prompt"' EXIT
+    trap 'rm -f "${temp_prompt:-}"' EXIT
 
     {
         cat "$prompt_file"
