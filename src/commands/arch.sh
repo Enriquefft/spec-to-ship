@@ -179,10 +179,23 @@ _arch_generate() {
     local -a spec_files=("$@")
 
     # Get prompt template
-    local prompt_file="$project_root/src/prompts/PROMPT_arch.md"
+    local prompt_file
+    if [[ -f "${project_root}/src/prompts/PROMPT_arch.md" ]]; then
+        prompt_file="${project_root}/src/prompts/PROMPT_arch.md"
+    elif [[ -f "$(dirname "$WORKFLOW_BIN")/../prompts/PROMPT_arch.md" ]]; then
+        prompt_file="$(dirname "$WORKFLOW_BIN")/../prompts/PROMPT_arch.md"
+    else
+        # Use prompts from this installation
+        local script_dir
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+        prompt_file="${script_dir}/prompts/PROMPT_arch.md"
+    fi
+
     if [[ ! -f "$prompt_file" ]]; then
         die "Prompt template not found: $prompt_file"
     fi
+
+    log_debug "Using prompt template: $prompt_file"
 
     # Combine all spec files
     log_info "Loading ${#spec_files[@]} specification files..."
