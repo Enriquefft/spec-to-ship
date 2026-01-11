@@ -68,9 +68,13 @@ plan_load() {
     local current_milestone=""
 
     while IFS= read -r line; do
-        # Detect milestone headers (## Phase N: or ## Milestone N:)
+        # Detect milestone headers (## Phase N:, ## Milestone N:, or ## M1:)
         if [[ "$line" =~ ^##[[:space:]]+(Phase|Milestone)[[:space:]]+([0-9]+): ]]; then
             current_milestone="M${BASH_REMATCH[2]}"
+            log_debug "Found milestone: $current_milestone"
+            continue
+        elif [[ "$line" =~ ^##[[:space:]]+(M[0-9]+): ]]; then
+            current_milestone="${BASH_REMATCH[1]}"
             log_debug "Found milestone: $current_milestone"
             continue
         fi
