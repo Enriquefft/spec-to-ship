@@ -12,7 +12,10 @@
       "Bash(git commit:*)",
       "Bash(src/workflow:*)",
       "Bash(/home/hybridz/Projects/spec-to-ship/src/workflow init:*)",
-      "Bash(/home/hybridz/Projects/spec-to-ship/src/workflow clarify:*)"
+      "Bash(/home/hybridz/Projects/spec-to-ship/src/workflow clarify:*)",
+      "Bash(nix develop:*)",
+      "Bash(bats:*)",
+      "Bash(command -v:*)"
     ],
     "deny": [],
     "ask": []

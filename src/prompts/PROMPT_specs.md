@@ -74,8 +74,11 @@ How will we measure success?
 
 ## Dependencies
 
-- [Other features this depends on]
+- `other-spec-filename.md` - [Description of dependency relationship]
+- `another-spec.md` - [Description]
 - [External systems or services needed]
+
+**Note**: When referencing other features from the same PRD, use their kebab-case spec filenames
 
 ## Out of Scope
 
@@ -189,5 +192,6 @@ Before outputting each specification, verify:
 - **Consistent Terminology**: Use terms from Structured PRD consistently
 - **Clear Priorities**: Maintain priority from original Activities
 - **Traceability**: Reference original Activity in spec metadata
+- **Explicit Dependencies**: When one spec depends on another, reference it using kebab-case filename (e.g., `upload-receipt.md`)
 
 Remember: These specs will be used by architects and engineers to design and build the system. They must be complete, clear, and unambiguous.

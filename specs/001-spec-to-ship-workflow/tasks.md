@@ -99,17 +99,17 @@
 
 ### Tests for User Story 3
 
-- [ ] T029 [P] [US3] Create BATS integration test for specs command in tests/integration/test_specs.bats covering creation, skip, and --force modes
+- [X] T029 [P] [US3] Create BATS integration test for specs command in tests/integration/test_specs.bats covering creation, skip, and --force modes
 
 ### Implementation for User Story 3
 
-- [ ] T030 [US3] Implement workflow specs command in src/commands/specs.sh with --force flag support per FR-007
-- [ ] T031 [US3] Load docs/PRD_STRUCTURED.md and parse activities using grep/sed
-- [ ] T032 [US3] Load PROMPT_specs.md and invoke Claude for each activity via claude_invoke with MODEL_SPECS from config
-- [ ] T033 [US3] Generate kebab-case filenames (e.g., specs/initialize-project.md) and write spec files per data-model.md Spec File entity structure
-- [ ] T034 [US3] Include explicit dependency references between specs using filenames per FR-008 and acceptance scenario 4
-- [ ] T035 [US3] Implement skip logic when specs exist (unless --force) per acceptance scenarios 2-3
-- [ ] T036 [US3] Add error handling for missing structured PRD per cli-interface.md
+- [X] T030 [US3] Implement workflow specs command in src/commands/specs.sh with --force flag support per FR-007
+- [X] T031 [US3] Load docs/PRD_STRUCTURED.md and parse activities using grep/sed
+- [X] T032 [US3] Load PROMPT_specs.md and invoke Claude for each activity via claude_invoke with MODEL_SPECS from config
+- [X] T033 [US3] Generate kebab-case filenames (e.g., specs/initialize-project.md) and write spec files per data-model.md Spec File entity structure
+- [X] T034 [US3] Include explicit dependency references between specs using filenames per FR-008 and acceptance scenario 4
+- [X] T035 [US3] Implement skip logic when specs exist (unless --force) per acceptance scenarios 2-3
+- [X] T036 [US3] Add error handling for missing structured PRD per cli-interface.md
 
 **Checkpoint**: User Story 3 complete - `workflow specs` functional and testable independently
 
