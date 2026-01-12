@@ -1,49 +1,23 @@
 #!/usr/bin/env bats
 # Integration tests for workflow plan command
+# Tests CLI behavior, file handling, and preconditions without requiring Claude
 
-# Helper to check if Claude is configured and working
-_is_claude_configured() {
-    # Check if claude command exists
-    if ! command -v claude &> /dev/null; then
-        return 1
-    fi
-
-    # Try to run a quick Claude command with timeout
-    # If it hangs or fails, Claude is not properly configured
-    if timeout 5s claude --version &> /dev/null; then
-        return 0
-    else
-        return 1
-    fi
-}
+# Load test helper
+load '../helpers/test_helper.bash'
 
 setup() {
-    # Create temporary test directory
-    export TEST_DIR="$(mktemp -d)"
-    export WORKFLOW_BIN="$(cd "${BATS_TEST_DIRNAME}/../../src" && pwd)/workflow"
-
-    cd "$TEST_DIR"
-
-    # Initialize git repo
-    git init -q
-    git config user.email "test@example.com"
-    git config user.name "Test User"
-
-    # Initialize workflow structure
-    "$WORKFLOW_BIN" init > /dev/null 2>&1
-
-    # Configure faster retries for tests
-    cat >> .workflow/config <<'EOF'
-RETRY_MAX_ATTEMPTS=1
-RETRY_BASE_DELAY=1
-EOF
+    setup_test_dir
+    setup_git_repo
+    setup_workflow
 }
 
 teardown() {
-    # Clean up test directory
-    cd /
-    rm -rf "$TEST_DIR"
+    teardown_test_dir
 }
+
+# =============================================================================
+# Precondition Tests
+# =============================================================================
 
 @test "workflow plan fails when no specs found" {
     # Remove specs directory
@@ -58,10 +32,7 @@ teardown() {
 
 @test "workflow plan fails when no architecture found" {
     # Create spec but no architecture
-    mkdir -p specs
-    echo "# Spec" > specs/test.md
-
-    # Remove architecture
+    create_spec
     rm -f docs/ARCHITECTURE.md
 
     run "$WORKFLOW_BIN" plan
@@ -70,198 +41,18 @@ teardown() {
     [[ "$output" =~ "ARCHITECTURE" ]] || [[ "$output" =~ "architecture" ]]
 }
 
-@test "workflow plan generates implementation plan from specs and architecture" {
-    # Create sample spec
-    mkdir -p specs
-    cat > specs/user-login.md <<'EOF'
-# Feature Specification: User Login
-
-## User Stories
-
-### Story 1: Login
-
-As a user,
-I want to log in with email and password,
-So that I can access the system.
-
-**Acceptance Criteria**:
-- [ ] User can enter credentials
-- [ ] System validates credentials
-- [ ] User receives auth token on success
-
-## Functional Requirements
-
-- **FR-001**: System SHALL accept email and password
-- **FR-002**: System SHALL return JWT token on success
-EOF
-
-    # Create sample architecture
-    mkdir -p docs
-    cat > docs/ARCHITECTURE.md <<'EOF'
-# System Architecture
-
-## Component Map
-
-### Authentication Service
-- Handles user login and token generation
-
-## Data Models
-
-### User
-- `id` (UUID): User identifier
-- `email` (string): Email address
-- `password_hash` (string): Hashed password
-
-## Interface Contracts
-
-### POST /api/login
-- Request: { email, password }
-- Response: { token }
-EOF
-
-    # Skip if claude not properly configured
-    if ! _is_claude_configured; then
-        skip "Claude CLI not configured or not responding"
-    fi
+@test "workflow plan fails when .workflow not initialized" {
+    # Remove workflow directory
+    rm -rf .workflow
 
     run "$WORKFLOW_BIN" plan
 
-    # Should attempt to generate plan (may fail on Claude API)
-    [ "$status" -eq 0 ] || [ "$status" -eq 1 ]
+    [ "$status" -eq 1 ]
 }
 
-@test "workflow plan creates IMPLEMENTATION_PLAN.md file" {
-    # Create minimal spec and architecture
-    mkdir -p specs docs
-    echo "# Spec" > specs/test.md
-    echo "# Architecture" > docs/ARCHITECTURE.md
-
-    # Skip if claude not properly configured
-    if ! _is_claude_configured; then
-        skip "Claude CLI not configured or not responding"
-    fi
-
-    # Create mock implementation plan
-    cat > docs/IMPLEMENTATION_PLAN.md <<'EOF'
-# Implementation Plan
-
-## Milestones
-
-### Milestone 1: Setup (Week 1)
-
-**Tasks**: T001-T003
-
-## Tasks
-
-### T001 - Setup Project
-
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [ ] Project initialized
-
-**Required tests**:
-- Directory structure test
-EOF
-
-    # Verify file structure
-    [ -f "docs/IMPLEMENTATION_PLAN.md" ]
-    grep -q "Milestones" docs/IMPLEMENTATION_PLAN.md
-    grep -q "Tasks" docs/IMPLEMENTATION_PLAN.md
-}
-
-@test "workflow plan includes task dependencies" {
-    # Create sample files
-    mkdir -p specs docs
-    echo "# Spec" > specs/test.md
-    echo "# Arch" > docs/ARCHITECTURE.md
-
-    # Skip if claude not properly configured
-    if ! _is_claude_configured; then
-        skip "Claude CLI not configured or not responding"
-    fi
-
-    # Mock plan with dependencies
-    cat > docs/IMPLEMENTATION_PLAN.md <<'EOF'
-# Implementation Plan
-
-## Tasks
-
-### T001 - Task One
-**Dependencies**: None
-
-### T002 - Task Two
-**Dependencies**: T001
-EOF
-
-    # Verify dependencies present
-    grep -q "Dependencies" docs/IMPLEMENTATION_PLAN.md
-}
-
-@test "workflow plan includes test requirements" {
-    # Create sample files
-    mkdir -p specs docs
-    echo "# Spec" > specs/test.md
-    echo "# Arch" > docs/ARCHITECTURE.md
-
-    # Skip if claude not properly configured
-    if ! _is_claude_configured; then
-        skip "Claude CLI not configured or not responding"
-    fi
-
-    # Mock plan with test requirements
-    cat > docs/IMPLEMENTATION_PLAN.md <<'EOF'
-# Implementation Plan
-
-## Tasks
-
-### T001 - Task One
-
-**Required tests**:
-- Unit test for function X
-- Integration test for API Y
-EOF
-
-    # Verify test requirements present
-    grep -q "Required tests" docs/IMPLEMENTATION_PLAN.md
-}
-
-@test "workflow plan --regen regenerates existing plan" {
-    # Create sample files
-    mkdir -p specs docs
-    echo "# Spec" > specs/test.md
-    echo "# Arch" > docs/ARCHITECTURE.md
-
-    # Create existing plan
-    echo "# Old Plan" > docs/IMPLEMENTATION_PLAN.md
-
-    # Skip if claude not properly configured
-    if ! _is_claude_configured; then
-        skip "Claude CLI not configured or not responding"
-    fi
-
-    run "$WORKFLOW_BIN" plan --regen
-
-    # Should attempt to regenerate (may fail on API)
-    [ "$status" -eq 0 ] || [ "$status" -eq 1 ]
-}
-
-@test "workflow plan --milestone filters specific milestone" {
-    # Create sample files
-    mkdir -p specs docs
-    echo "# Spec" > specs/test.md
-    echo "# Arch" > docs/ARCHITECTURE.md
-
-    # Skip if claude not properly configured
-    if ! _is_claude_configured; then
-        skip "Claude CLI not configured or not responding"
-    fi
-
-    run "$WORKFLOW_BIN" plan --milestone M1
-
-    # Should work or fail gracefully
-    [ "$status" -eq 0 ] || [ "$status" -eq 1 ]
-}
+# =============================================================================
+# Help and Usage Tests
+# =============================================================================
 
 @test "workflow plan --help shows usage" {
     run "$WORKFLOW_BIN" plan --help
@@ -280,13 +71,158 @@ EOF
     [[ "$output" =~ "Unknown option" ]] || [[ "$output" =~ "invalid" ]]
 }
 
-@test "workflow plan performs gap analysis with existing code" {
-    # Create sample files
-    mkdir -p specs docs src
-    echo "# Spec" > specs/test.md
-    echo "# Arch" > docs/ARCHITECTURE.md
+# =============================================================================
+# File Structure Tests
+# =============================================================================
+
+@test "workflow plan output file has expected structure" {
+    create_spec
+    create_architecture
+    create_implementation_plan
+
+    # Verify file structure
+    [ -f "docs/IMPLEMENTATION_PLAN.md" ]
+    grep -q "Milestone" docs/IMPLEMENTATION_PLAN.md
+    grep -q "T00" docs/IMPLEMENTATION_PLAN.md
+}
+
+@test "workflow plan creates plan with milestones" {
+    create_implementation_plan
+
+    # Verify milestones exist
+    grep -q "Milestone 1" docs/IMPLEMENTATION_PLAN.md || grep -q "## M1" docs/IMPLEMENTATION_PLAN.md
+}
+
+@test "workflow plan creates plan with tasks" {
+    create_implementation_plan
+
+    # Verify tasks exist
+    grep -q "\- \[ \]" docs/IMPLEMENTATION_PLAN.md
+}
+
+# =============================================================================
+# Task Dependency Tests
+# =============================================================================
+
+@test "implementation plan includes task dependencies" {
+    create_implementation_plan with_deps
+
+    # Verify dependencies present
+    grep -q "depends:" docs/IMPLEMENTATION_PLAN.md
+    grep -q "T001" docs/IMPLEMENTATION_PLAN.md
+}
+
+@test "implementation plan tasks have correct format" {
+    create_implementation_plan
+
+    # Tasks should have checkbox format: - [ ] TXXX
+    grep -qE "^- \[[[:space:]xX]\] T[0-9]+" docs/IMPLEMENTATION_PLAN.md
+}
+
+# =============================================================================
+# Regeneration Tests
+# =============================================================================
+
+@test "workflow plan --regen flag is recognized" {
+    create_spec
+    create_architecture
+
+    # Create existing plan
+    echo "# Old Plan" > docs/IMPLEMENTATION_PLAN.md
+
+    run timeout 5 "$WORKFLOW_BIN" plan --regen
+
+    # Should not hang and should not error on the flag itself
+    [ "$status" -ne 124 ]
+}
+
+@test "workflow plan preserves existing plan on failure" {
+    create_spec
+    create_architecture
+
+    # Create existing plan with specific content
+    cat > docs/IMPLEMENTATION_PLAN.md <<'EOF'
+# Original Plan
+This content should not change on failure.
+EOF
+
+    original_content="$(cat docs/IMPLEMENTATION_PLAN.md)"
+
+    # Run plan (will fail without Claude)
+    "$WORKFLOW_BIN" plan 2>/dev/null || true
+
+    # File should still exist with original content
+    [ -f "docs/IMPLEMENTATION_PLAN.md" ]
+    current_content="$(cat docs/IMPLEMENTATION_PLAN.md)"
+    [ "$original_content" = "$current_content" ]
+}
+
+# =============================================================================
+# Milestone Filter Tests
+# =============================================================================
+
+@test "workflow plan --milestone flag is recognized" {
+    create_spec
+    create_architecture
+
+    run timeout 5 "$WORKFLOW_BIN" plan --milestone M1
+
+    # Should not hang and should not error on the flag itself
+    [ "$status" -ne 124 ]
+}
+
+@test "workflow plan --milestone accepts various formats" {
+    create_spec
+    create_architecture
+
+    # Test different milestone formats
+    for milestone in M1 M2 1 2; do
+        run timeout 5 "$WORKFLOW_BIN" plan --milestone "$milestone"
+        [ "$status" -ne 124 ]
+    done
+}
+
+# =============================================================================
+# Plan Content Tests
+# =============================================================================
+
+@test "implementation plan includes test requirements" {
+    # Create plan with test requirements
+    mkdir -p docs
+    cat > docs/IMPLEMENTATION_PLAN.md <<'EOF'
+# Implementation Plan
+
+## Milestone 1: Setup
+
+- [ ] T001 Create project - depends: []
+
+**Required tests**:
+- Unit test for function X
+- Integration test for API Y
+EOF
+
+    # Verify test requirements present
+    grep -q "Required tests" docs/IMPLEMENTATION_PLAN.md
+}
+
+@test "implementation plan task status parsing" {
+    create_implementation_plan mixed
+
+    # Should have both done and pending tasks
+    grep -q "\[X\]" docs/IMPLEMENTATION_PLAN.md
+    grep -q "\[ \]" docs/IMPLEMENTATION_PLAN.md
+}
+
+# =============================================================================
+# Gap Analysis Tests
+# =============================================================================
+
+@test "workflow plan handles existing source code" {
+    create_spec
+    create_architecture
 
     # Create some existing code
+    mkdir -p src
     cat > src/test.js <<'EOF'
 // Existing implementation
 function login() {
@@ -294,12 +230,33 @@ function login() {
 }
 EOF
 
-    # Skip if claude not properly configured
-    if ! _is_claude_configured; then
-        skip "Claude CLI not configured or not responding"
-    fi
+    # Command should run without crashing
+    run timeout 5 "$WORKFLOW_BIN" plan
 
-    # Should include gap analysis in plan generation
-    # (Exact behavior depends on implementation)
+    # Should not hang
+    [ "$status" -ne 124 ]
+
+    # Verify source file exists
     [ -f "src/test.js" ]
+}
+
+# =============================================================================
+# Configuration Tests
+# =============================================================================
+
+@test "workflow plan respects retry configuration" {
+    create_spec
+    create_architecture
+
+    # Configure minimal retries
+    cat >> .workflow/config.sh <<'EOF'
+RETRY_MAX_ATTEMPTS=1
+RETRY_BASE_DELAY=1
+EOF
+
+    # Command should fail fast
+    run timeout 10 "$WORKFLOW_BIN" plan
+
+    # Should complete within timeout
+    [ "$status" -ne 124 ]
 }

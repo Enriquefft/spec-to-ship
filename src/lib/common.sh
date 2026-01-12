@@ -12,6 +12,7 @@ if [[ -z "${COLOR_RESET:-}" ]]; then
     readonly COLOR_GREEN='\033[0;32m'
     readonly COLOR_BLUE='\033[0;34m'
     readonly COLOR_GRAY='\033[0;90m'
+    readonly COLOR_BOLD='\033[1m'
 fi
 
 # Log level configuration
@@ -28,30 +29,25 @@ _timestamp() {
 }
 
 # Sanitize message to remove secrets
+# Optimized: Single sed invocation with all patterns combined
 _sanitize_message() {
     local message="$1"
 
-    # Define secret patterns to redact
-    local patterns=(
-        's/sk-[a-zA-Z0-9]{32,}/[REDACTED_API_KEY]/g'
-        's/ghp_[a-zA-Z0-9]{36}/[REDACTED_GITHUB_TOKEN]/g'
-        's/gho_[a-zA-Z0-9]{36}/[REDACTED_GITHUB_OAUTH]/g'
-        's/AIza[0-9A-Za-z_-]{35}/[REDACTED_GOOGLE_KEY]/g'
-        's/Bearer [a-zA-Z0-9._~+\/-]+=*/Bearer [REDACTED_TOKEN]/g'
-        's/token[=:][[:space:]]*[a-zA-Z0-9._~+\/-]+=*/token=[REDACTED_TOKEN]/gi'
-        's/password[=:][[:space:]]*[^[:space:]]+/password=[REDACTED_PASSWORD]/gi'
-        's/secret[=:][[:space:]]*[^[:space:]]+/secret=[REDACTED_SECRET]/gi'
-        's/apikey[=:][[:space:]]*[^[:space:]]+/apikey=[REDACTED_KEY]/gi'
-        's/api_key[=:][[:space:]]*[^[:space:]]+/api_key=[REDACTED_KEY]/gi'
-        's/-----BEGIN[[:space:]].*PRIVATE KEY-----.*-----END[[:space:]].*PRIVATE KEY-----/[REDACTED_PRIVATE_KEY]/g'
-    )
-
-    # Apply all patterns (suppress errors for portability)
-    for pattern in "${patterns[@]}"; do
-        message="$(echo "$message" | sed -E "$pattern" 2>/dev/null)" || true
-    done
-
-    echo "$message"
+    # Apply all secret patterns in a single sed invocation for performance
+    # shellcheck disable=SC2016  # $ in sed patterns are not variables
+    echo "$message" | sed -E \
+        -e 's/sk-[a-zA-Z0-9]{32,}/[REDACTED_API_KEY]/g' \
+        -e 's/ghp_[a-zA-Z0-9]{36}/[REDACTED_GITHUB_TOKEN]/g' \
+        -e 's/gho_[a-zA-Z0-9]{36}/[REDACTED_GITHUB_OAUTH]/g' \
+        -e 's/AIza[0-9A-Za-z_-]{35}/[REDACTED_GOOGLE_KEY]/g' \
+        -e 's/Bearer [a-zA-Z0-9._~+\/-]+=*/Bearer [REDACTED_TOKEN]/g' \
+        -e 's/token[=:][[:space:]]*[a-zA-Z0-9._~+\/-]+=*/token=[REDACTED_TOKEN]/gi' \
+        -e 's/password[=:][[:space:]]*[^[:space:]]+/password=[REDACTED_PASSWORD]/gi' \
+        -e 's/secret[=:][[:space:]]*[^[:space:]]+/secret=[REDACTED_SECRET]/gi' \
+        -e 's/apikey[=:][[:space:]]*[^[:space:]]+/apikey=[REDACTED_KEY]/gi' \
+        -e 's/api_key[=:][[:space:]]*[^[:space:]]+/api_key=[REDACTED_KEY]/gi' \
+        -e 's/-----BEGIN[[:space:]].*PRIVATE KEY-----.*-----END[[:space:]].*PRIVATE KEY-----/[REDACTED_PRIVATE_KEY]/g' \
+        2>/dev/null || echo "$message"
 }
 
 # Log to file if LOG_FILE is set
@@ -226,9 +222,10 @@ resolve_prompt_template() {
     return 0
 }
 
-# present_alternatives(title, opt1_name, opt1_desc, opt1_pros, opt1_cons, opt2_name, opt2_desc, opt2_pros, opt2_cons, opt3_name, opt3_desc, opt3_pros, opt3_cons, recommended) - Present alternatives and get user choice
-# Arguments: title, then for each of 3 options: name, description, pros (comma-sep), cons (comma-sep), then recommended option (A/B/C)
+# present_alternatives(title, opt1_name, opt1_desc, opt1_pros, opt1_cons, opt2_name, opt2_desc, opt2_pros, opt2_cons, opt3_name, opt3_desc, opt3_pros, opt3_cons, recommended, [rec_reasoning]) - Present alternatives and get user choice
+# Arguments: title, then for each of 3 options: name, description, pros (comma-sep), cons (comma-sep), then recommended option (A/B/C), optional reasoning
 # Returns: Selected option (A, B, C, or custom command if user provides custom)
+# Follows the speckit.clarify pattern: recommendation at top, table format, accepts "yes"/"recommended"
 present_alternatives() {
     local title="$1"
     local opt_a_name="$2"
@@ -244,35 +241,16 @@ present_alternatives() {
     local opt_c_pros="${12}"
     local opt_c_cons="${13}"
     local recommended="${14}"
+    local rec_reasoning="${15:-Best balance of benefits vs trade-offs for most use cases}"
 
-    echo ""
-    echo -e "${COLOR_BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${COLOR_RESET}"
-    echo -e "${COLOR_BLUE}$title${COLOR_RESET}"
-    echo -e "${COLOR_BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${COLOR_RESET}"
-    echo ""
+    # Header
+    echo "" >&2
+    echo -e "${COLOR_YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${COLOR_RESET}" >&2
+    echo -e "${COLOR_YELLOW}$title${COLOR_RESET}" >&2
+    echo -e "${COLOR_YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${COLOR_RESET}" >&2
+    echo "" >&2
 
-    # Option A
-    echo -e "${COLOR_YELLOW}[A]${COLOR_RESET} $opt_a_name"
-    echo "    $opt_a_desc"
-    echo "    Pros: $opt_a_pros"
-    echo "    Cons: $opt_a_cons"
-    echo ""
-
-    # Option B
-    echo -e "${COLOR_YELLOW}[B]${COLOR_RESET} $opt_b_name"
-    echo "    $opt_b_desc"
-    echo "    Pros: $opt_b_pros"
-    echo "    Cons: $opt_b_cons"
-    echo ""
-
-    # Option C
-    echo -e "${COLOR_YELLOW}[C]${COLOR_RESET} $opt_c_name"
-    echo "    $opt_c_desc"
-    echo "    Pros: $opt_c_pros"
-    echo "    Cons: $opt_c_cons"
-    echo ""
-
-    # Recommended
+    # Recommendation (Prominent at top)
     if [[ "$recommended" =~ ^[ABC]$ ]]; then
         local rec_name
         case "$recommended" in
@@ -280,16 +258,50 @@ present_alternatives() {
             B) rec_name="$opt_b_name" ;;
             C) rec_name="$opt_c_name" ;;
         esac
-        echo -e "${COLOR_GREEN}Recommended:${COLOR_RESET} [$recommended] $rec_name"
-        echo ""
+        echo -e "${COLOR_GREEN}**Recommended:** Option [$recommended] ($rec_name) - $rec_reasoning${COLOR_RESET}" >&2
+        echo "" >&2
     fi
 
+    # Options Table
+    echo "| Option | Description |" >&2
+    echo "|--------|-------------|" >&2
+    echo "| A | $opt_a_name: $opt_a_desc |" >&2
+    echo "| B | $opt_b_name: $opt_b_desc |" >&2
+    echo "| C | $opt_c_name: $opt_c_desc |" >&2
+    echo "| Short | Provide a different short answer (<=5 words) |" >&2
+    echo "" >&2
+
+    # Details (collapsible info)
+    echo -e "${COLOR_GRAY}Details:${COLOR_RESET}" >&2
+    echo -e "${COLOR_GRAY}  [A] Pros: $opt_a_pros | Cons: $opt_a_cons${COLOR_RESET}" >&2
+    echo -e "${COLOR_GRAY}  [B] Pros: $opt_b_pros | Cons: $opt_b_cons${COLOR_RESET}" >&2
+    echo -e "${COLOR_GRAY}  [C] Pros: $opt_c_pros | Cons: $opt_c_cons${COLOR_RESET}" >&2
+    echo "" >&2
+
+    # Instructions
+    echo "You can reply with the option letter (e.g., \"A\"), accept the recommendation" >&2
+    echo "by saying \"yes\" or \"recommended\", or provide your own short answer." >&2
+    echo "" >&2
+    echo -n "Your choice: " >&2
+
     # Get user choice
-    echo -n "Select option (A/B/C) or provide custom command: "
     local choice
     read -r choice
-    choice=$(echo "$choice" | tr '[:lower:]' '[:upper:]')
 
+    # Process aliases
+    case "${choice,,}" in
+        y|yes|rec|recommended|suggested)
+            if [[ "$recommended" =~ ^[ABC]$ ]]; then
+                choice="$recommended"
+                log_debug "User accepted recommendation: $recommended"
+            fi
+            ;;
+        a|b|c)
+            choice=$(echo "$choice" | tr '[:lower:]' '[:upper:]')
+            ;;
+    esac
+
+    # Return choice
     case "$choice" in
         A|B|C)
             echo "$choice"

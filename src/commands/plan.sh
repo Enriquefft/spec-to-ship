@@ -12,6 +12,10 @@ source "$LIB_DIR/config.sh"
 source "$LIB_DIR/git.sh"
 # shellcheck source=src/lib/claude.sh
 source "$LIB_DIR/claude.sh"
+# shellcheck source=src/lib/tempfiles.sh
+source "$LIB_DIR/tempfiles.sh"
+# shellcheck source=src/lib/context.sh
+source "$LIB_DIR/context.sh"
 
 # cmd_plan - Generate implementation plan from specifications and architecture
 cmd_plan() {
@@ -101,10 +105,6 @@ Use --regen to regenerate the plan (this will overwrite existing plan)."
     log_info "Found ${#spec_files[@]} specification files"
     log_info "Loading architecture document"
 
-    # Get model from config
-    local model
-    model="$(config_get MODEL_PLAN)"
-
     # Present planning approach alternatives (unless milestone-specific)
     local planning_approach="summary"
     if [[ -z "$milestone" ]]; then
@@ -131,10 +131,10 @@ Use --regen to regenerate the plan (this will overwrite existing plan)."
 
     log_info "Using planning approach: $planning_approach"
 
-    # Perform gap analysis on existing code
+    # Perform gap analysis on existing code (using cached context analysis)
     log_info "Scanning src/ directory for gap analysis..."
     local gap_analysis
-    gap_analysis="$(_analyze_code_gap "$project_root")"
+    gap_analysis="$(context_analyze_code_gap "$project_root")"
 
     # Generate implementation plan
     if [[ -n "$milestone" ]]; then
@@ -217,58 +217,8 @@ NOTES:
 EOF
 }
 
-# _analyze_code_gap - Scan src/ directory and analyze gap between specs and existing code
-# Arguments: project_root
-_analyze_code_gap() {
-    local project_root="$1"
-    local src_dir="$project_root/src"
-
-    local gap_analysis=""
-
-    if [[ ! -d "$src_dir" ]]; then
-        gap_analysis="No src/ directory found. Starting from scratch."
-        echo "$gap_analysis"
-        return 0
-    fi
-
-    # Count files by type
-    local file_count
-    file_count=$(find "$src_dir" -type f 2>/dev/null | wc -l)
-
-    if [[ $file_count -eq 0 ]]; then
-        gap_analysis="src/ directory exists but is empty. Starting from scratch."
-        echo "$gap_analysis"
-        return 0
-    fi
-
-    log_debug "Found $file_count files in src/"
-
-    # Get file tree structure
-    local tree_output
-    if command -v tree &> /dev/null; then
-        tree_output=$(tree -L 3 -I 'node_modules|.git' "$src_dir" 2>/dev/null || echo "")
-    else
-        tree_output=$(find "$src_dir" -type f -not -path '*/node_modules/*' -not -path '*/.git/*' | head -50 | sort)
-    fi
-
-    # Build gap analysis report
-    gap_analysis+="## Existing Code Analysis"$'\n'
-    gap_analysis+=""$'\n'
-    gap_analysis+="**File Count**: $file_count files in src/"$'\n'
-    gap_analysis+=""$'\n'
-    gap_analysis+="**Directory Structure**:"$'\n'
-    gap_analysis+='```'$'\n'
-    gap_analysis+="$tree_output"$'\n'
-    gap_analysis+='```'$'\n'
-    gap_analysis+=""$'\n'
-    gap_analysis+="**Gap Analysis Instructions**:"$'\n'
-    gap_analysis+="- Compare existing code against specification requirements"$'\n'
-    gap_analysis+="- Identify what's already implemented vs. what needs to be built"$'\n'
-    gap_analysis+="- Prioritize unimplemented features and missing functionality"$'\n'
-    gap_analysis+="- Note any existing code that may need refactoring or updates"$'\n'
-
-    echo "$gap_analysis"
-}
+# Note: _analyze_code_gap moved to context.sh as context_analyze_code_gap()
+# This provides caching and consistent format across commands
 
 # _generate_spec_summaries - Create brief summaries of all specs
 # Arguments: spec_files...
@@ -309,15 +259,14 @@ _plan_generate() {
         die "Prompt template not found"
     fi
 
-    # Load architecture
+    # Load architecture summary (using context compression)
     local arch_file="$project_root/docs/ARCHITECTURE.md"
     local arch_overview
-    arch_overview=$(head -100 "$arch_file")
+    arch_overview=$(context_summarize_arch "$arch_file")
 
-    # Create combined prompt based on planning approach
+    # Create combined prompt using centralized temp file management
     local temp_prompt
-    temp_prompt="$(mktemp)"
-    trap 'rm -f "${temp_prompt:-}"' EXIT
+    temp_prompt="$(tempfile_create)"
 
     {
         cat "$prompt_file"
@@ -410,17 +359,15 @@ _plan_generate() {
         echo "9. Output ONLY the markdown implementation plan (no explanations)"
     } > "$temp_prompt"
 
-    # Invoke Claude
-    log_info "Invoking Claude for implementation plan generation..."
+    # Invoke provider for plan phase
+    log_info "Invoking provider for implementation plan generation..."
     local response
-    if ! response=$(claude_invoke "$model" "$temp_prompt"); then
-        rm -f "$temp_prompt"
-        trap - EXIT
-        die "Claude invocation failed. Check your API key and connection."
+    if ! response=$(provider_invoke_for_phase "plan" "$temp_prompt"); then
+        tempfile_remove "$temp_prompt"
+        die "Provider invocation failed. Check your configuration."
     fi
 
-    rm -f "$temp_prompt"
-    trap - EXIT
+    tempfile_remove "$temp_prompt"
 
     # Write implementation plan
     local plan_file="$project_root/docs/IMPLEMENTATION_PLAN.md"
@@ -454,10 +401,9 @@ _plan_generate_milestone() {
         die "Prompt template not found"
     fi
 
-    # Create milestone-specific prompt
+    # Create milestone-specific prompt using centralized temp file management
     local temp_prompt
-    temp_prompt="$(mktemp)"
-    trap 'rm -f "${temp_prompt:-}"' EXIT
+    temp_prompt="$(tempfile_create)"
 
     {
         cat "$prompt_file"
@@ -477,17 +423,15 @@ _plan_generate_milestone() {
         echo "4. Output ONLY the milestone section with tasks"
     } > "$temp_prompt"
 
-    # Invoke Claude
+    # Invoke provider for plan phase
     log_info "Generating detailed plan for milestone $milestone..."
     local response
-    if ! response=$(claude_invoke "$model" "$temp_prompt"); then
-        rm -f "$temp_prompt"
-        trap - EXIT
-        die "Claude invocation failed. Check your API key and connection."
+    if ! response=$(provider_invoke_for_phase "plan" "$temp_prompt"); then
+        tempfile_remove "$temp_prompt"
+        die "Provider invocation failed. Check your configuration."
     fi
 
-    rm -f "$temp_prompt"
-    trap - EXIT
+    tempfile_remove "$temp_prompt"
 
     # Write milestone plan (append or update)
     local milestone_file="$project_root/docs/PLAN_${milestone}.md"

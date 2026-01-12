@@ -10,12 +10,16 @@ source "$LIB_DIR/common.sh"
 source "$LIB_DIR/config.sh"
 # shellcheck source=src/lib/git.sh
 source "$LIB_DIR/git.sh"
-# shellcheck source=src/lib/claude.sh
-source "$LIB_DIR/claude.sh"
-# shellcheck source=src/lib/hitl.sh
-source "$LIB_DIR/hitl.sh"
+# shellcheck source=src/lib/interaction.sh
+source "$LIB_DIR/interaction.sh"
+# shellcheck source=src/lib/tempfiles.sh
+source "$LIB_DIR/tempfiles.sh"
+# shellcheck source=src/lib/context.sh
+source "$LIB_DIR/context.sh"
 # shellcheck source=src/lib/plan.sh
 source "$LIB_DIR/plan.sh"
+# shellcheck source=src/lib/agent.sh
+source "$LIB_DIR/agent.sh"
 
 # Global flag for signal handling
 BUILD_INTERRUPTED=false
@@ -27,6 +31,7 @@ cmd_build() {
     local hitl_mode=""
     local no_hitl=false
     local hitl_timeout=""
+    local no_git=false
 
     # Parse options
     while [[ $# -gt 0 ]]; do
@@ -37,14 +42,14 @@ cmd_build() {
                 fi
                 max_iterations="$2"
                 shift 2
-                ;;
+                ;; 
             --milestone)
                 if [[ -z "${2:-}" ]]; then
                     die "Option --milestone requires an argument"
                 fi
                 milestone="$2"
                 shift 2
-                ;;
+                ;; 
             --hitl)
                 if [[ -z "${2:-}" ]]; then
                     hitl_mode="task"
@@ -53,28 +58,32 @@ cmd_build() {
                     shift
                 fi
                 shift
-                ;;
+                ;; 
             --no-hitl)
                 no_hitl=true
                 shift
-                ;;
+                ;; 
+            --no-git)
+                no_git=true
+                shift
+                ;; 
             --hitl-timeout)
                 if [[ -z "${2:-}" ]]; then
                     die "Option --hitl-timeout requires an argument"
                 fi
                 hitl_timeout="$2"
                 shift 2
-                ;;
+                ;; 
             --help)
                 _build_help
                 return 0
-                ;;
+                ;; 
             --*)
                 die "Unknown option: $1"
-                ;;
+                ;; 
             *)
                 die "Unexpected argument: $1"
-                ;;
+                ;; 
         esac
     done
 
@@ -97,16 +106,16 @@ cmd_build() {
     case "$hitl_mode" in
         task|milestone|uncertain|disabled)
             # Valid modes
-            ;;
+            ;; 
         every:*)
             # Validate every:N format
             if ! [[ "$hitl_mode" =~ ^every:[0-9]+$ ]]; then
                 die "Invalid HITL mode format: $hitl_mode (expected every:N where N is a number)"
             fi
-            ;;
+            ;; 
         *)
             die "Invalid HITL mode: $hitl_mode (must be: task, milestone, uncertain, disabled, or every:N)"
-            ;;
+            ;; 
     esac
 
     # Get project root
@@ -116,6 +125,17 @@ cmd_build() {
     else
         project_root="$(pwd)"
         log_debug "Using current directory as project root: $project_root"
+    fi
+
+    # Validate git repository (unless --no-git specified)
+    local use_git=true
+    if ! git_is_repo; then
+        if [[ "$no_git" == "true" ]]; then
+            use_git=false
+            log_warn "Running without git integration (--no-git specified)"
+        else
+            die "Not in a git repository. Use --no-git to run without git integration."
+        fi
     fi
 
     # Load implementation plan
@@ -177,7 +197,7 @@ cmd_build() {
 
         # Detect milestone change
         if command -v plan_get_task_milestone &> /dev/null; then
-            current_milestone=$(PLAN_TASK_MILESTONE[$task_id]:-"")
+            current_milestone="${PLAN_TASK_MILESTONE[$task_id]:-""}"
         fi
 
         # Check for milestone transition
@@ -191,7 +211,7 @@ cmd_build() {
         fi
 
         # Execute single task iteration
-        if ! _build_execute_task "$project_root" "$task_id" "$hitl_mode"; then
+        if ! _build_execute_task "$project_root" "$task_id" "$hitl_mode" "$use_git"; then
             log_error "Task execution failed: $task_id"
             exit_code=1
             break
@@ -204,7 +224,7 @@ cmd_build() {
         if [[ "$hitl_mode" =~ ^every:([0-9]+)$ ]]; then
             local interval="${BASH_REMATCH[1]}"
             if [[ $((tasks_executed % interval)) -eq 0 ]]; then
-                if ! _build_hitl_iteration_check "$tasks_executed" "$hitl_mode"; then
+                if ! _build_hitl_iteration_check "$tasks_executed" "$hitl_mode" "$use_git"; then
                     log_warn "Iteration review rejected by user"
                     exit_code=1
                     break
@@ -251,7 +271,7 @@ DESCRIPTION:
 
     Iteratively executes tasks one at a time:
     1. Select highest-priority pending task
-    2. Invoke Claude to implement task
+    2. Invoke Agent to implement task (reading/writing files)
     3. Run backpressure validation (tests, lint, typecheck)
     4. Commit changes if validation passes
     5. Update task status in plan
@@ -267,6 +287,7 @@ OPTIONS:
                               - every:N: pause every N tasks
                               - disabled: no pauses
     --no-hitl                Disable human-in-the-loop (same as --hitl disabled)
+    --no-git                 Run without git integration (no commits)
     --hitl-timeout SECONDS   Timeout for HITL prompts
     --help                   Show this help message
 
@@ -285,12 +306,6 @@ EXAMPLES:
     # Build specific milestone
     workflow build --milestone M1
 
-    # Build with task-level HITL
-    workflow build --hitl task
-
-    # Build without any HITL pauses
-    workflow build --no-hitl
-
 INPUTS:
     docs/IMPLEMENTATION_PLAN.md    Implementation plan with tasks
 
@@ -298,20 +313,14 @@ OUTPUTS:
     Implemented code, tests, commits per task
 
 CONFIGURATION:
-    MODEL_BUILD_PRIMARY        Primary Claude model (default: opus)
-    MODEL_BUILD_SUBAGENT       Subagent Claude model (default: sonnet)
-    BUILD_PUSH_AFTER_COMMIT    Auto-push after commit (default: false)
+    MODEL_BUILD_PRIMARY        Primary model for agent loop
     HITL_MODE                  Default HITL mode (default: milestone)
-    HITL_TIMEOUT               HITL prompt timeout (default: 300)
 
 EXIT CODES:
     0    Success (all tasks complete)
     1    Error (task execution failed)
     2    Max iterations reached (more work pending)
     130  Interrupted by user (Ctrl+C)
-
-SIGNAL HANDLING:
-    Ctrl+C: Clean shutdown, ensures atomic git operations
 EOF
 }
 
@@ -323,11 +332,12 @@ _build_signal_handler() {
 }
 
 # _build_execute_task - Execute a single task
-# Arguments: project_root, task_id, hitl_mode
+# Arguments: project_root, task_id, hitl_mode, use_git
 _build_execute_task() {
     local project_root="$1"
     local task_id="$2"
     local hitl_mode="$3"
+    local use_git="${4:-true}"
 
     # Get task description
     local task_desc
@@ -345,17 +355,30 @@ _build_execute_task() {
     # Mark task as in progress
     plan_set_task_status "$task_id" "in_progress"
 
-    # Get task context for Claude
-    local task_context
-    task_context="$(_build_get_task_context "$project_root" "$task_id")"
+    # Invoke Agent to implement task using minimal context
+    local plan_file="$project_root/docs/IMPLEMENTATION_PLAN.md"
 
-    # Invoke Claude to implement task
-    log_info "Invoking Claude for task implementation..."
-    if ! _build_invoke_claude "$project_root" "$task_id" "$task_context"; then
-        log_error "Claude invocation failed"
+    # Create a compressed task context (minimal plan context + task-specific info)
+    local context_file
+    context_file="$(tempfile_create)"
+    {
+        echo "# TARGET TASK: $task_id"
+        echo "$task_desc"
+        echo ""
+        # Use compressed plan context instead of full plan (token optimization)
+        context_compress_plan "$plan_file" "$task_id"
+    } > "$context_file"
+
+    log_info "Invoking Agent for task implementation..."
+
+    # Call the AGENT LOOP with minimal context
+    if ! agent_run_task "Implement task $task_id: $task_desc" "$context_file"; then
+        log_error "Agent failed to implement task"
         plan_set_task_status "$task_id" "failed"
+        tempfile_remove "$context_file"
         return 1
     fi
+    tempfile_remove "$context_file"
 
     # Run backpressure validation
     log_info "Running backpressure validation..."
@@ -366,7 +389,7 @@ _build_execute_task() {
     fi
 
     # Check HITL before committing
-    if ! _build_hitl_check "$task_id" "$hitl_mode" "task"; then
+    if ! _build_hitl_check "$task_id" "$hitl_mode" "task" "$use_git"; then
         log_info "Task execution cancelled by user"
         plan_set_task_status "$task_id" "pending"
         return 1
@@ -374,7 +397,7 @@ _build_execute_task() {
 
     # Commit changes
     log_info "Committing changes..."
-    if ! _build_commit_task "$project_root" "$task_id" "$task_desc"; then
+    if ! _build_commit_task "$project_root" "$task_id" "$task_desc" "$use_git"; then
         log_error "Failed to commit changes"
         plan_set_task_status "$task_id" "failed"
         return 1
@@ -384,120 +407,6 @@ _build_execute_task() {
     plan_set_task_status "$task_id" "done"
     log_info "${COLOR_GREEN}✓${COLOR_RESET} Task completed: $task_id"
 
-    return 0
-}
-
-# _build_get_task_context - Get context for task execution
-# Arguments: project_root, task_id
-_build_get_task_context() {
-    local project_root="$1"
-    local task_id="$2"
-
-    local context=""
-
-    # Get full task details from plan
-    local task_details
-    task_details="$(grep -A 20 "^### $task_id" "$project_root/docs/IMPLEMENTATION_PLAN.md" || echo "")"
-
-    context+="## Task Details"$'\n'
-    context+=""$'\n'
-    context+="$task_details"$'\n'
-    context+=""$'\n'
-
-    # Add architecture context if available
-    if [[ -f "$project_root/docs/ARCHITECTURE.md" ]]; then
-        context+="## Architecture Reference"$'\n'
-        context+=""$'\n'
-        context+="$(head -100 "$project_root/docs/ARCHITECTURE.md")"$'\n'
-        context+=""$'\n'
-    fi
-
-    # Add directory tree of src/
-    if [[ -d "$project_root/src" ]]; then
-        context+="## Current Codebase Structure"$'\n'
-        context+='```'$'\n'
-        if command -v tree &> /dev/null; then
-            context+="$(tree -L 3 -I 'node_modules|.git' "$project_root/src" 2>/dev/null || find "$project_root/src" -type f | head -20)"$'\n'
-        else
-            context+="$(find "$project_root/src" -type f | head -20)"$'\n'
-        fi
-        context+='```'$'\n'
-        context+=""$'\n'
-    fi
-
-    echo "$context"
-}
-
-# _build_invoke_claude - Invoke Claude for task implementation
-# Arguments: project_root, task_id, task_context
-_build_invoke_claude() {
-    local project_root="$1"
-    local task_id="$2"
-    local task_context="$3"
-
-    # Get model from config
-    local model
-    model="$(config_get MODEL_BUILD_PRIMARY)"
-
-    # Get prompt template (try project first, then fallback to script source)
-    local prompt_file="$project_root/src/prompts/PROMPT_build.md"
-    if [[ ! -f "$prompt_file" ]]; then
-        # Fallback to source prompts directory
-        local script_prompts="${LIB_DIR}/../prompts/PROMPT_build.md"
-        if [[ -f "$script_prompts" ]]; then
-            prompt_file="$script_prompts"
-            log_debug "Using fallback prompt: $prompt_file"
-        else
-            log_error "Prompt template not found in project or source: $prompt_file"
-            return 1
-        fi
-    fi
-
-    # Create combined prompt
-    local temp_prompt
-    temp_prompt="$(mktemp)"
-    trap 'rm -f "$temp_prompt"' EXIT
-
-    {
-        cat "$prompt_file"
-        echo ""
-        echo "---"
-        echo ""
-        echo "# TASK CONTEXT"
-        echo ""
-        echo "$task_context"
-        echo ""
-        echo "---"
-        echo ""
-        echo "**Instructions**:"
-        echo "1. Implement the task according to acceptance criteria"
-        echo "2. Follow existing code patterns and architecture"
-        echo "3. Write or update tests as needed"
-        echo "4. Ensure code quality and error handling"
-        echo "5. Use tools to search, read, write files"
-        echo "6. DO NOT create commit - that will be done automatically"
-    } > "$temp_prompt"
-
-    # Invoke Claude
-    # Note: In real implementation, Claude would use tools to modify files
-    # For this simplified version, we log the invocation
-    log_debug "Invoking Claude with task prompt..."
-
-    # Simplified: Just invoke Claude (actual implementation would use Claude Code with tools)
-    local response
-    if ! response=$(claude_invoke "$model" "$temp_prompt" 2>&1); then
-        rm -f "$temp_prompt"
-        trap - EXIT
-        return 1
-    fi
-
-    rm -f "$temp_prompt"
-    trap - EXIT
-
-    log_debug "Claude execution completed"
-
-    # In real implementation, Claude would have modified files using tools
-    # For now, we'll just assume success
     return 0
 }
 
@@ -555,11 +464,12 @@ _build_validate_backpressure() {
 }
 
 # _build_hitl_check - Check if HITL intervention is needed
-# Arguments: task_id, hitl_mode, checkpoint_type
+# Arguments: task_id, hitl_mode, checkpoint_type, use_git
 _build_hitl_check() {
     local task_id="$1"
     local hitl_mode="$2"
     local checkpoint_type="$3"
+    local use_git="${4:-true}"
 
     # Disabled mode
     if [[ "$hitl_mode" == "disabled" ]]; then
@@ -568,12 +478,12 @@ _build_hitl_check() {
 
     # Task mode - pause after every task
     if [[ "$hitl_mode" == "task" ]] && [[ "$checkpoint_type" == "task" ]]; then
-        return _build_hitl_prompt "$task_id"
+        return _build_hitl_prompt "$task_id" "$use_git"
     fi
 
     # Milestone mode - only pause at milestones
     if [[ "$hitl_mode" == "milestone" ]] && [[ "$checkpoint_type" == "milestone" ]]; then
-        return _build_hitl_prompt "$task_id"
+        return _build_hitl_prompt "$task_id" "$use_git"
     fi
 
     # Default: no intervention needed
@@ -581,22 +491,29 @@ _build_hitl_check() {
 }
 
 # _build_hitl_prompt - Prompt user for HITL approval
-# Arguments: task_id
+# Arguments: task_id, use_git
 _build_hitl_prompt() {
     local task_id="$1"
+    local use_git="${2:-true}"
 
     echo ""
     log_info "${COLOR_YELLOW}HITL Checkpoint${COLOR_RESET}: Task $task_id ready to commit"
 
-    # Show git status
-    echo ""
-    git status --short
-    echo ""
+    # Show git status only if in a git repo
+    if [[ "$use_git" == "true" ]]; then
+        echo ""
+        git status --short
+        echo ""
 
-    # Show diff summary
-    echo -e "${COLOR_BLUE}Changes summary:${COLOR_RESET}"
-    git diff --stat --cached 2>/dev/null || git diff --stat 2>/dev/null || echo "No changes"
-    echo ""
+        # Show diff summary
+        echo -e "${COLOR_BLUE}Changes summary:${COLOR_RESET}"
+        git diff --stat --cached 2>/dev/null || git diff --stat 2>/dev/null || echo "No changes"
+        echo ""
+    else
+        echo ""
+        echo -e "${COLOR_BLUE}Note:${COLOR_RESET} Not in a git repository, commit step will be skipped"
+        echo ""
+    fi
 
     local response
     if ! response=$(hitl_prompt "Approve commit? [y/n/edit/skip]" "decision" "y) Yes - approve and commit\nn) No - rollback and retry\nedit) Edit - open in editor\nskip) Skip - skip this task"); then
@@ -608,13 +525,15 @@ _build_hitl_prompt() {
         y|yes)
             log_info "Approved by user"
             return 0
-            ;;
+            ;; 
         n|no)
             log_info "Rejected by user, rolling back changes"
-            git reset --hard HEAD 2>/dev/null || true
-            git clean -fd 2>/dev/null || true
+            if [[ "$use_git" == "true" ]]; then
+                git reset --hard HEAD 2>/dev/null || true
+                git clean -fd 2>/dev/null || true
+            fi
             return 1
-            ;;
+            ;; 
         edit|e)
             log_info "Opening editor for manual changes..."
             # Launch editor if available
@@ -628,17 +547,19 @@ _build_hitl_prompt() {
                 log_warn "No editor found, use EDITOR environment variable"
             fi
             # Ask again after editing
-            return _build_hitl_prompt "$task_id"
-            ;;
+            return _build_hitl_prompt "$task_id" "$use_git"
+            ;; 
         skip|s)
             log_info "Skipped by user"
-            git reset --hard HEAD 2>/dev/null || true
+            if [[ "$use_git" == "true" ]]; then
+                git reset --hard HEAD 2>/dev/null || true
+            fi
             return 1
-            ;;
+            ;; 
         *)
             log_warn "Invalid response: $response, treating as rejection"
             return 1
-            ;;
+            ;; 
     esac
 }
 
@@ -667,44 +588,47 @@ _build_hitl_milestone_check() {
         y|yes|proceed)
             log_info "Proceeding to next milestone"
             return 0
-            ;;
+            ;; 
         n|no|stop)
             log_info "Stopping at milestone boundary"
             return 1
-            ;;
+            ;; 
         rework)
             log_info "User requested rework - stopping for manual intervention"
             echo ""
             log_info "To continue, review and update the plan, then run: workflow build"
             return 1
-            ;;
+            ;; 
         replan)
             log_info "User requested replan - stopping for plan regeneration"
             echo ""
             log_info "To continue, run: workflow plan --regen && workflow build"
             return 1
-            ;;
+            ;; 
         *)
             log_warn "Invalid response: $response, stopping"
             return 1
-            ;;
+            ;; 
     esac
 }
 
 # _build_hitl_iteration_check - Check for every:N iteration HITL
-# Arguments: iteration_count, hitl_mode
+# Arguments: iteration_count, hitl_mode, use_git
 _build_hitl_iteration_check() {
     local iteration_count="$1"
     local hitl_mode="$2"
+    local use_git="${3:-true}"
 
     echo ""
     log_info "${COLOR_YELLOW}HITL Iteration Checkpoint${COLOR_RESET}: $iteration_count tasks executed"
     echo ""
 
-    # Show recent commits
-    echo -e "${COLOR_BLUE}Recent commits:${COLOR_RESET}"
-    git log --oneline -5 2>/dev/null || echo "No commits yet"
-    echo ""
+    # Show recent commits only if in a git repo
+    if [[ "$use_git" == "true" ]]; then
+        echo -e "${COLOR_BLUE}Recent commits:${COLOR_RESET}"
+        git log --oneline -5 2>/dev/null || echo "No commits yet"
+        echo ""
+    fi
 
     local response
     if ! response=$(hitl_prompt "Continue execution? [y/n/pause]" "iteration" "y) Yes - continue\nn) No - stop\npause) Pause - review and resume manually"); then
@@ -716,30 +640,37 @@ _build_hitl_iteration_check() {
         y|yes|continue)
             log_info "Continuing execution"
             return 0
-            ;;
+            ;; 
         n|no|stop)
             log_info "Stopping execution at iteration checkpoint"
             return 1
-            ;;
+            ;; 
         pause|p)
             log_info "Pausing for manual review"
             echo ""
             log_info "To resume, run: workflow build"
             return 1
-            ;;
+            ;; 
         *)
             log_warn "Invalid response: $response, continuing"
             return 0
-            ;;
+            ;; 
     esac
 }
 
 # _build_commit_task - Commit task changes
-# Arguments: project_root, task_id, task_desc
+# Arguments: project_root, task_id, task_desc, use_git
 _build_commit_task() {
     local project_root="$1"
     local task_id="$2"
     local task_desc="$3"
+    local use_git="${4:-true}"
+
+    # Skip commit if not in a git repository
+    if [[ "$use_git" != "true" ]]; then
+        log_debug "Git disabled, skipping commit"
+        return 0
+    fi
 
     # Check if there are changes to commit
     if ! git diff --quiet || ! git diff --cached --quiet; then

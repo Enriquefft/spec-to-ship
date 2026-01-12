@@ -66,6 +66,7 @@ SUBCOMMANDS:
     status      Show current workflow state
     diff        Show changes since last milestone
     config      Manage configuration
+    provider     Manage AI providers
 
 GLOBAL OPTIONS:
     -h, --help      Show help for command
@@ -233,6 +234,11 @@ main() {
             # shellcheck source=src/commands/config.sh
             source "${COMMANDS_DIR}/config.sh"
             cmd_config "$@"
+            ;;
+        provider)
+            # shellcheck source=src/commands/provider.sh
+            source "${COMMANDS_DIR}/provider.sh"
+            cmd_provider "$@"
             ;;
         -h|--help)
             show_help

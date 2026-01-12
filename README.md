@@ -2,6 +2,11 @@
 
 A CLI tool that orchestrates the complete software development lifecycle from PRD to deployed code, using specification-driven workflows with AI-powered processing.
 
+Heavily inspired by:
+- [https://github.com/github/spec-kit](https://github.com/github/spec-kit)
+- [https://github.com/frankbria/ralph-claude-code](https://github.com/frankbria/ralph-claude-code)
+
+
 ## Prerequisites
 
 Before using the workflow tool, ensure you have the following installed:
@@ -622,5 +627,318 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 ## Support
 
 For issues and questions:
+- GitHub Issues: [repository-url/issues]
+- **Human-in-the-Loop**: Optional oversight at task, milestone, or uncertainty checkpoints
+
+## Prerequisites
+
+| Required | Version | Purpose |
+|----------|---------|---------|
+| Bash | 4.0+ | Script execution |
+| Git | 2.0+ | Version control |
+| [Claude Code CLI](https://github.com/anthropics/claude-code) | Latest | AI orchestration |
+| jq | 1.6+ | JSON processing |
+| envsubst | Any | Template substitution (gettext) |
+
+**Optional**: BATS (testing), shellcheck (linting)
+
+### Quick Install
+
+```bash
+# macOS
+brew install git jq gettext
+# Install Claude Code CLI separately
+
+# Ubuntu/Debian
+sudo apt-get install git jq gettext
+
+# Arch Linux
+sudo pacman -S git jq gettext
+```
+
+## Installation
+
+```bash
+# Clone and add to PATH
+git clone <repository-url>
+cd spec-to-ship
+export PATH="$PWD/src:$PATH"
+
+# OR create symlink
+sudo ln -s "$PWD/src/workflow" /usr/local/bin/workflow
+```
+
+## Quick Start
+
+```bash
+# 1. Initialize project
+mkdir my-project && cd my-project
+git init
+workflow init
+
+# 2. Edit docs/PRD.md with your requirements
+
+# 3. Run the workflow
+workflow clarify    # Interactive requirements refinement
+workflow specs      # Generate feature specifications
+workflow arch       # Create architecture document
+workflow plan       # Generate implementation plan
+workflow build      # Execute autonomous build loop
+
+# 4. Check progress
+workflow status     # View current state
+workflow gate       # Validate milestone completion
+```
+
+## Core Commands
+
+| Command | Purpose | Key Options |
+|---------|---------|-------------|
+| `init` | Initialize project structure | `--from FILE`, `--force` |
+| `clarify` | Refine PRD interactively | `--no-interactive` |
+| `specs` | Generate activity specifications | `--force` |
+| `arch` | Create architecture document | `--review` |
+| `plan` | Generate implementation plan | `--regen`, `--milestone` |
+| `build` | Execute build loop | `--max N`, `--hitl MODE`, `--milestone` |
+| `gate` | Validate milestone completion | `--milestone NAME`, `--force` |
+| `status` | Show workflow state | - |
+| `config` | Manage configuration | `--get KEY`, `--set KEY=VALUE`, `--edit` |
+| `diff` | Show changes | `--milestone NAME` |
+
+**Full command reference**: See [docs/COMMANDS.md](docs/COMMANDS.md)
+
+## Common Workflows
+
+### End-to-End Autonomous Build
+
+```bash
+workflow init
+# Edit docs/PRD.md
+workflow clarify && workflow specs && workflow arch && workflow plan
+workflow build
+
+# Validate each milestone
+workflow gate --milestone M1
+workflow gate --milestone M2
+```
+
+### Iterative Development with Human Oversight
+
+```bash
+# Initial setup
+workflow init && workflow clarify && workflow specs && workflow arch && workflow plan
+
+# Build first milestone with oversight
+workflow build --hitl milestone --milestone M1
+workflow gate --milestone M1
+
+# Review changes
+workflow diff --milestone M1
+workflow status
+
+# Continue to next milestone
+workflow build --hitl milestone --milestone M2
+```
+
+### Rapid Prototyping (Faster Models)
+
+```bash
+# Configure for speed
+workflow config --set MODEL_BUILD_PRIMARY=sonnet
+workflow config --set BUILD_BACKPRESSURE_TYPECHECK=false
+
+# Build with limited iterations
+workflow build --max 20 --hitl every:5
+```
+
+### Cautious Production Build
+
+```bash
+# Configure for quality
+workflow config --set MODEL_BUILD_PRIMARY=opus
+workflow config --set HITL_ENABLED=true
+workflow config --set HITL_MODE=task
+
+# Review every task
+workflow build --hitl task
+
+# Validate thoroughly
+workflow gate --milestone M1
+# Review gate report in docs/gates/
+```
+
+### Recovery from Errors
+
+```bash
+# Check what went wrong
+workflow status
+tail -f .workflow/logs/*.log
+
+# Reset uncommitted changes
+git reset --hard HEAD
+
+# Regenerate plan if needed
+workflow plan --regen
+
+# Resume build
+workflow build
+```
+
+### Milestone-Specific Development
+
+```bash
+# Work on specific milestone only
+workflow build --milestone M1 --max 15
+
+# Validate before moving on
+workflow gate --milestone M1
+
+# View milestone changes
+workflow diff --milestone M1
+```
+
+## Human-in-the-Loop (HITL) Modes
+
+Control when the workflow pauses for human review:
+
+- **`task`**: Pause after every task (maximum oversight)
+- **`milestone`**: Pause after each milestone completes
+- **`uncertain`**: Pause only when Claude detects ambiguity
+- **`every:N`**: Pause every N iterations (e.g., `every:5`)
+
+```bash
+# Enable HITL for current run
+workflow build --hitl milestone
+
+# Configure persistently
+workflow config --set HITL_ENABLED=true
+workflow config --set HITL_MODE=milestone
+
+# Add timeout (auto-continue if no response)
+workflow build --hitl task --hitl-timeout 5m
+
+# Disable for specific run
+workflow build --no-hitl
+```
+
+## Configuration
+
+Configuration stored in `.workflow/config.sh`. Modify via:
+
+```bash
+# View all settings
+workflow config
+
+# Set values
+workflow config --set MODEL_BUILD_PRIMARY=sonnet
+workflow config --set HITL_MODE=milestone
+workflow config --set BUILD_MAX_ITERATIONS=50
+
+# Interactive editing
+workflow config --edit
+```
+
+### Key Settings
+
+**Models** (opus/sonnet/haiku):
+- `MODEL_BUILD_PRIMARY` - Main build model (default: opus)
+- `MODEL_CLARIFY`, `MODEL_SPECS`, `MODEL_ARCH`, `MODEL_PLAN` - Phase-specific models
+
+**HITL**:
+- `HITL_ENABLED` - Enable human-in-the-loop (true/false)
+- `HITL_MODE` - When to pause (task/milestone/uncertain/every:N)
+- `HITL_TIMEOUT` - Auto-continue timeout (e.g., "5m", "1h")
+
+**Build**:
+- `BUILD_MAX_ITERATIONS` - Iteration limit (0 = unlimited)
+- `BUILD_BACKPRESSURE_TESTS` - Run tests on each task (true/false)
+- `BUILD_BACKPRESSURE_LINT` - Run linter on each task (true/false)
+- `BUILD_BACKPRESSURE_TYPECHECK` - Run type checker (true/false)
+
+## Project Structure
+
+```
+.workflow/                    # Workflow state
+  config.sh                   # Configuration
+  logs/                       # Session logs
+docs/
+  PRD.md                      # Product requirements
+  PRD_STRUCTURED.md           # Structured PRD (after clarify)
+  ARCHITECTURE.md             # System architecture
+  IMPLEMENTATION_PLAN.md      # Task plan with dependencies
+  gates/                      # Milestone validation reports
+  hitl-log.md                 # HITL interaction history
+specs/
+  {feature-slug}.md           # Per-activity specifications
+src/                          # Your source code
+```
+
+## Workflow Phases
+
+1. **Requirements**: `clarify` → PRD_STRUCTURED.md
+2. **Specification**: `specs` → specs/*.md files
+3. **Architecture**: `arch` → ARCHITECTURE.md
+4. **Planning**: `plan` → IMPLEMENTATION_PLAN.md
+5. **Execution**: `build` → Working code + commits
+6. **Validation**: `gate` → Gate reports
+
+Each phase builds on the previous, creating a traceable path from requirements to implementation.
+
+## Environment Variables
+
+**Required** (if not in Claude CLI config):
+- `CLAUDE_API_KEY` - API authentication
+
+**Optional**:
+- `WORKFLOW_CONFIG` - Override config file path
+- `WORKFLOW_LOG_LEVEL` - Debug verbosity (DEBUG/INFO/WARN/ERROR)
+- `WORKFLOW_*` - Override any config setting (e.g., `WORKFLOW_MODEL_CLARIFY=opus`)
+
+## Getting Help
+
+```bash
+# Command help
+workflow --help
+workflow build --help
+
+# View current state
+workflow status
+
+# Check logs
+tail -f .workflow/logs/*.log
+
+# Debug mode
+workflow --verbose build 2>&1 | tee debug.log
+```
+
+## Documentation
+
+- **[Command Reference](docs/COMMANDS.md)** - Detailed command documentation with all options and examples
+- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues, debugging, and solutions
+
+## Development
+
+### Running Tests
+```bash
+bats tests/                              # All tests
+bats tests/unit/test_common.bats        # Specific suite
+bats --verbose-run tests/               # Verbose
+```
+
+### Linting
+```bash
+shellcheck src/workflow src/lib/*.sh src/commands/*.sh
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## License
+
+[Add your license here]
+
+## Support
+
 - GitHub Issues: [repository-url/issues]
 - Documentation: [link to docs]

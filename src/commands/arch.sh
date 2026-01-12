@@ -12,8 +12,12 @@ source "$LIB_DIR/config.sh"
 source "$LIB_DIR/git.sh"
 # shellcheck source=src/lib/claude.sh
 source "$LIB_DIR/claude.sh"
-# shellcheck source=src/lib/hitl.sh
-source "$LIB_DIR/hitl.sh"
+# shellcheck source=src/lib/interaction.sh
+source "$LIB_DIR/interaction.sh"
+# shellcheck source=src/lib/tempfiles.sh
+source "$LIB_DIR/tempfiles.sh"
+# shellcheck source=src/lib/context.sh
+source "$LIB_DIR/context.sh"
 
 # cmd_arch - Generate architecture document from specifications
 cmd_arch() {
@@ -91,10 +95,6 @@ Run 'workflow specs' first to generate specification files."
         fi
     fi
 
-    # Get model from config
-    local model
-    model="$(config_get MODEL_ARCH)"
-
     # Generate or review architecture
     if [[ "$review" == "true" ]]; then
         log_info "Starting interactive architecture review session..."
@@ -122,7 +122,7 @@ Run 'workflow specs' first to generate specification files."
         esac
     else
         log_info "Generating architecture document..."
-        _arch_generate "$project_root" "$model" "${spec_files[@]}"
+        _arch_generate "$project_root" "${spec_files[@]}"
     fi
 
     if [[ -f "$arch_file" ]]; then
@@ -192,11 +192,10 @@ EOF
 }
 
 # _arch_generate - Generate architecture document
-# Arguments: project_root, model, spec_files...
+# Arguments: project_root, spec_files...
 _arch_generate() {
     local project_root="$1"
-    local model="$2"
-    shift 2
+    shift 1
     local -a spec_files=("$@")
 
     # Get prompt template
@@ -220,10 +219,9 @@ _arch_generate() {
         all_specs+=""$'\n'
     done
 
-    # Create combined prompt
+    # Create combined prompt using centralized temp file management
     local temp_prompt
-    temp_prompt="$(mktemp)"
-    trap 'rm -f "$temp_prompt"' EXIT
+    temp_prompt="$(tempfile_create)"
 
     {
         cat "$prompt_file"
@@ -253,17 +251,15 @@ _arch_generate() {
         echo "7. Output ONLY the markdown architecture document (no explanations)"
     } > "$temp_prompt"
 
-    # Invoke Claude
-    log_info "Invoking Claude for architecture generation..."
+    # Invoke provider for arch phase
+    log_info "Invoking provider for architecture generation..."
     local response
-    if ! response=$(claude_invoke "$model" "$temp_prompt"); then
-        rm -f "$temp_prompt"
-        trap - EXIT
-        die "Claude invocation failed. Check your API key and connection."
+    if ! response=$(provider_invoke_for_phase "arch" "$temp_prompt"); then
+        tempfile_remove "$temp_prompt"
+        die "Provider invocation failed. Check your configuration."
     fi
 
-    rm -f "$temp_prompt"
-    trap - EXIT
+    tempfile_remove "$temp_prompt"
 
     # Write architecture document
     local arch_file="$project_root/docs/ARCHITECTURE.md"
@@ -276,8 +272,6 @@ _arch_generate() {
 # Arguments: project_root
 _arch_review_freeform() {
     local project_root="$1"
-    local model
-    model="$(config_get MODEL_ARCH)"
 
     local arch_file="$project_root/docs/ARCHITECTURE.md"
     local current_arch
@@ -311,8 +305,7 @@ _arch_review_freeform() {
         all_feedback+="**Round $current_round:** $feedback"$'\n\n'
 
         local refine_prompt
-        refine_prompt="$(mktemp)"
-        trap 'rm -f "$refine_prompt"' EXIT
+        refine_prompt="$(tempfile_create)"
 
         {
             cat "$prompt_file"
@@ -335,15 +328,13 @@ _arch_review_freeform() {
         } > "$refine_prompt"
 
         local refined_arch
-        if ! refined_arch=$(claude_invoke "$model" "$refine_prompt"); then
-            rm -f "$refine_prompt"
-            trap - EXIT
+        if ! refined_arch=$(provider_invoke_for_phase "arch" "$refine_prompt"); then
+            tempfile_remove "$refine_prompt"
             log_error "Refinement failed"
             break
         fi
 
-        rm -f "$refine_prompt"
-        trap - EXIT
+        tempfile_remove "$refine_prompt"
 
         current_arch="$refined_arch"
         echo "$current_arch" > "$arch_file"
@@ -358,8 +349,6 @@ _arch_review_freeform() {
 # Arguments: project_root
 _arch_review_guided() {
     local project_root="$1"
-    local model
-    model="$(config_get MODEL_ARCH)"
 
     local arch_file="$project_root/docs/ARCHITECTURE.md"
     local current_arch
@@ -412,8 +401,7 @@ _arch_review_guided() {
 
     # Generate refined architecture with all collected feedback
     local refine_prompt
-    refine_prompt="$(mktemp)"
-    trap 'rm -f "$refine_prompt"' EXIT
+    refine_prompt="$(tempfile_create)"
 
     {
         cat "$prompt_file"
@@ -436,15 +424,13 @@ _arch_review_guided() {
     } > "$refine_prompt"
 
     local refined_arch
-    if ! refined_arch=$(claude_invoke "$model" "$refine_prompt"); then
-        rm -f "$refine_prompt"
-        trap - EXIT
+    if ! refined_arch=$(provider_invoke_for_phase "arch" "$refine_prompt"); then
+        tempfile_remove "$refine_prompt"
         log_error "Refinement failed"
         return 1
     fi
 
-    rm -f "$refine_prompt"
-    trap - EXIT
+    tempfile_remove "$refine_prompt"
 
     echo "$refined_arch" > "$arch_file"
     log_info "${COLOR_GREEN}✓${COLOR_RESET} Architecture refined with guided feedback"
@@ -454,20 +440,17 @@ _arch_review_guided() {
 
 # _arch_review - Interactive architecture review and refinement (Option A - AI-Guided)
 # Arguments: project_root, spec_files...
+# Optimized: Removed AI pre-step that wasted tokens analyzing architecture before user input
 _arch_review() {
     local project_root="$1"
     shift
     local -a spec_files=("$@")
 
-    # Get model from config
-    local model
-    model="$(config_get MODEL_ARCH)"
-
     # First generate initial architecture if it doesn't exist
     local arch_file="$project_root/docs/ARCHITECTURE.md"
     if [[ ! -f "$arch_file" ]]; then
         log_info "No existing architecture found, generating initial version..."
-        _arch_generate "$project_root" "$model" "${spec_files[@]}"
+        _arch_generate "$project_root" "${spec_files[@]}"
         echo ""
     fi
 
@@ -478,73 +461,20 @@ _arch_review() {
     log_info "Starting interactive review session..."
     echo ""
 
-    # Get HITL timeout from config
-    local hitl_timeout
-    hitl_timeout="$(config_get HITL_TIMEOUT)"
-
-    # First, identify specific areas needing refinement (single API call)
-    log_info "Analyzing architecture for refinement opportunities..."
-
     local prompt_file
     if ! prompt_file="$(resolve_prompt_template "PROMPT_arch.md" "$project_root")"; then
         log_error "Prompt template not found"
         return 1
     fi
 
-    local refinement_analysis_prompt
-    refinement_analysis_prompt="$(mktemp)"
-    trap 'rm -f "$refinement_analysis_prompt"' EXIT
-
-    {
-        cat "$prompt_file"
-        echo ""
-        echo "---"
-        echo ""
-        echo "# CURRENT ARCHITECTURE"
-        echo ""
-        echo "$current_arch"
-        echo ""
-        echo "---"
-        echo ""
-        echo "**Task: Architecture Review Analysis**"
-        echo ""
-        echo "Suggest 3-5 specific areas in the architecture that could be improved."
-        echo "Format as JSON:"
-        echo "{"
-        echo "  \"areas\": ["
-        echo "    {\"id\": 1, \"title\": \"Area\", \"description\": \"What could be improved\"},"
-        echo "    {\"id\": 2, \"title\": \"...\", \"description\": \"...\"}"
-        echo "  ]"
-        echo "}"
-        echo ""
-        echo "Then provide the complete current architecture unchanged."
-    } > "$refinement_analysis_prompt"
-
-    log_info "Invoking Claude to identify refinement areas..."
-    local analysis_response
-    if ! analysis_response=$(claude_invoke "$model" "$refinement_analysis_prompt"); then
-        rm -f "$refinement_analysis_prompt"
-        trap - EXIT
-        log_error "Analysis failed, proceeding to manual review"
-        return 1
-    fi
-
-    rm -f "$refinement_analysis_prompt"
-    trap - EXIT
-
-    # Extract refinement areas from response
-    local refinement_areas
-    refinement_areas=$(echo "$analysis_response" | sed -n '/```json/,/```/p' | sed '1d;$d')
-    if [[ -z "$refinement_areas" ]]; then
-        refinement_areas=$(echo "$analysis_response" | sed -n '/{/,/}/p' | head -1)
-    fi
-
-    # Display suggested areas if found
-    if [[ -n "$refinement_areas" ]] && echo "$refinement_areas" | jq . >/dev/null 2>&1; then
-        log_info "Suggested refinement areas:"
-        echo "$refinement_areas" | jq -r '.areas[]? | "\(.id). \(.title): \(.description)"' | sed 's/^/  - /'
-        echo ""
-    fi
+    # Display common refinement areas for user guidance (no API call needed)
+    log_info "Common areas to consider for refinement:"
+    echo "  - Component boundaries and responsibilities"
+    echo "  - Data flow and API contracts"
+    echo "  - Error handling and resilience patterns"
+    echo "  - Security and authentication"
+    echo "  - Scalability and performance"
+    echo ""
 
     # Interactive refinement loop (max 3 rounds)
     local max_rounds=3
@@ -573,8 +503,7 @@ _arch_review() {
 
         # Create targeted refinement prompt (only sends architecture + feedback, not specs)
         local refine_prompt
-        refine_prompt="$(mktemp)"
-        trap 'rm -f "$refine_prompt"' EXIT
+        refine_prompt="$(tempfile_create)"
 
         {
             cat "$prompt_file"
@@ -603,15 +532,13 @@ _arch_review() {
 
         # Single API call per refinement
         local refined_arch
-        if ! refined_arch=$(claude_invoke "$model" "$refine_prompt"); then
-            rm -f "$refine_prompt"
-            trap - EXIT
+        if ! refined_arch=$(provider_invoke_for_phase "arch" "$refine_prompt"); then
+            tempfile_remove "$refine_prompt"
             log_error "Refinement failed, keeping current architecture"
             break
         fi
 
-        rm -f "$refine_prompt"
-        trap - EXIT
+        tempfile_remove "$refine_prompt"
 
         # Update architecture
         current_arch="$refined_arch"

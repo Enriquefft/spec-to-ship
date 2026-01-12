@@ -53,7 +53,33 @@ Generate an implementation plan with this structure:
 ### Milestone 2: [Name] (Week 3-4)
 ...
 
-## Tasks
+## Task Summary
+
+**IMPORTANT**: This checklist format is required for the build system to parse and execute tasks.
+
+### Milestone 1
+
+- [ ] T001 [M1] Brief task description (depends: none)
+- [ ] T002 [M1] Brief task description (depends: T001) [P]
+- [ ] T003 [M1] Brief task description (depends: none)
+
+### Milestone 2
+
+- [ ] T004 [M2] Brief task description (depends: T002, T003)
+...
+
+**Format Rules**:
+- Start with `- [ ]` for pending tasks or `- [X]` for completed tasks
+- Follow with task ID (T001, T002, etc.)
+- Include `[MX]` milestone marker
+- Add brief description
+- Optionally add `(depends: T001, T002)` for dependencies
+- Optionally add `[P]` marker for parallel-safe tasks
+- Keep description concise (one line)
+
+---
+
+## Detailed Task Specifications
 
 ### Task Format
 
@@ -387,6 +413,7 @@ Mark tasks that can run parallel:
 
 Before finalizing the plan:
 
+- [ ] **Task Summary section exists** with checklist format (`- [ ] T001 ...`)
 - [ ] All spec features are covered by tasks
 - [ ] Dependencies form valid DAG (no cycles)
 - [ ] Each milestone has clear deliverables
@@ -395,34 +422,48 @@ Before finalizing the plan:
 - [ ] Risk mitigation strategies defined
 - [ ] Timeline is realistic given team size
 - [ ] Quality gates are specific and measurable
+- [ ] Every task in Task Summary has a corresponding detailed specification
 
 ## Example: Good vs. Bad Tasks
 
-**Bad Task**:
-> T042 - Implement user management
+**Bad - No Task Summary Entry**:
+```markdown
+## Tasks
 
-**Good Task**:
-> **T042 - Implement User Registration API**
->
-> **Description**: Create POST /api/users endpoint per architecture
->
-> **Dependencies**: T015 (Database setup), T023 (Auth middleware)
->
-> **Acceptance Criteria**:
-> - [ ] Accepts email, password, name in request body
-> - [ ] Validates email format and password strength
-> - [ ] Creates user record in database
-> - [ ] Returns 201 with user ID on success
-> - [ ] Returns 400 with error details on validation failure
-> - [ ] Returns 409 if email already exists
-> - [ ] Hashes password before storing
->
-> **Files**: `src/api/users.ts, src/services/auth.ts`
->
-> **Test File**: `tests/api/users.test.ts`
->
-> **Estimated Effort**: 4 hours
->
-> **Parallel**: No (depends on T015, T023)
+#### T042 - Implement user management
+...detailed spec...
+```
+
+**Good - Has Both Checklist Entry AND Detailed Spec**:
+```markdown
+## Task Summary
+
+### Milestone 2
+
+- [ ] T042 [M2] Implement User Registration API (depends: T015, T023)
+
+## Detailed Task Specifications
+
+#### T042 - Implement User Registration API
+
+**Description**: Create POST /api/users endpoint per architecture
+
+**Milestone**: M2
+**Dependencies**: T015 (Database setup), T023 (Auth middleware)
+
+**Acceptance Criteria**:
+- [ ] Accepts email, password, name in request body
+- [ ] Validates email format and password strength
+- [ ] Creates user record in database
+- [ ] Returns 201 with user ID on success
+- [ ] Returns 400 with error details on validation failure
+- [ ] Returns 409 if email already exists
+- [ ] Hashes password before storing
+
+**Files**: `src/api/users.ts, src/services/auth.ts`
+**Test File**: `tests/api/users.test.ts`
+**Estimated Effort**: 4 hours
+**Parallel**: No
+```
 
 Remember: This plan will guide the entire implementation. It must be detailed, realistic, and actionable.

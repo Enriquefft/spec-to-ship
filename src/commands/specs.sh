@@ -12,6 +12,10 @@ source "$LIB_DIR/config.sh"
 source "$LIB_DIR/git.sh"
 # shellcheck source=src/lib/claude.sh
 source "$LIB_DIR/claude.sh"
+# shellcheck source=src/lib/tempfiles.sh
+source "$LIB_DIR/tempfiles.sh"
+# shellcheck source=src/lib/context.sh
+source "$LIB_DIR/context.sh"
 
 # cmd_specs - Generate specification files from structured PRD
 cmd_specs() {
@@ -104,10 +108,6 @@ Run 'workflow clarify' first to generate the structured PRD."
 
     log_info "Found ${#activities[@]} activities to process"
 
-    # Get model from config
-    local model
-    model="$(config_get MODEL_SPECS)"
-
     # Create specs directory if it doesn't exist
     mkdir -p "$project_root/specs"
 
@@ -153,7 +153,7 @@ Run 'workflow clarify' first to generate the structured PRD."
 
         # Generate spec file
         log_info "  Generating spec: $spec_file"
-        if _generate_spec "$model" "$activity_name" "$activity_section" "$spec_path" "$all_spec_files" "$project_root" "$context_mode" "$prd_content"; then
+        if _generate_spec "$activity_name" "$activity_section" "$spec_path" "$all_spec_files" "$project_root" "$context_mode" "$prd_content"; then
             log_info "  ${COLOR_GREEN}✓${COLOR_RESET} Generated: $spec_file"
             generated_count=$((generated_count + 1))
         else
@@ -281,16 +281,16 @@ _extract_activity_section() {
 }
 
 # _generate_spec - Generate specification file for an activity
-# Arguments: model, activity_name, activity_section, output_file, all_spec_files, project_root, context_mode, prd_content
+# Arguments: activity_name, activity_section, output_file, all_spec_files, project_root, context_mode, prd_file
+# Optimized: Uses tempfile_create for automatic cleanup and context compression
 _generate_spec() {
-    local model="$1"
-    local activity_name="$2"
-    local activity_section="$3"
-    local output_file="$4"
-    local all_spec_files="$5"
-    local project_root="$6"
-    local context_mode="$7"
-    local prd_content="$8"
+    local activity_name="$1"
+    local activity_section="$2"
+    local output_file="$3"
+    local all_spec_files="$4"
+    local project_root="$5"
+    local context_mode="$6"
+    local prd_file="$7"
 
     # Get prompt template
     local prompt_file
@@ -298,10 +298,9 @@ _generate_spec() {
         return 1
     fi
 
-    # Create combined prompt based on context mode
+    # Create combined prompt using centralized temp file management
     local temp_prompt
-    temp_prompt="$(mktemp)"
-    trap 'rm -f "${temp_prompt:-}"' EXIT
+    temp_prompt="$(tempfile_create)"
 
     {
         cat "$prompt_file"
@@ -309,34 +308,35 @@ _generate_spec() {
         echo "---"
         echo ""
 
-        # Add context based on selected mode
+        # Add context based on selected mode (optimized with compression)
         case "$context_mode" in
             full)
                 echo "# CONTEXT: Full Structured PRD"
                 echo ""
-                echo "$prd_content"
+                cat "$prd_file"
                 echo ""
                 echo "---"
                 echo ""
                 ;;
             with_arch)
-                echo "# CONTEXT: Full Structured PRD"
+                # Use summarized PRD instead of full for token savings
+                echo "# CONTEXT: Structured PRD (Key Sections)"
                 echo ""
-                echo "$prd_content"
+                context_summarize_prd "$prd_file"
                 echo ""
                 echo "---"
                 echo ""
                 if [[ -f "$project_root/docs/ARCHITECTURE.md" ]]; then
                     echo "# CONTEXT: Architecture Overview"
                     echo ""
-                    head -100 "$project_root/docs/ARCHITECTURE.md"
+                    context_summarize_arch "$project_root/docs/ARCHITECTURE.md"
                     echo ""
                     echo "---"
                     echo ""
                 fi
                 ;;
             minimal|*)
-                # Minimal context - just spec references
+                # Minimal context - just spec references (most token-efficient)
                 echo "# CONTEXT: Other Specs in This Project"
                 echo ""
                 echo "For cross-referencing dependencies, other specs include:"
@@ -364,16 +364,14 @@ _generate_spec() {
         echo "7. Use the filename: $(basename "$output_file" .md)"
     } > "$temp_prompt"
 
-    # Invoke Claude
+    # Invoke provider for specs phase
     local response
-    if ! response=$(claude_invoke "$model" "$temp_prompt"); then
-        rm -f "$temp_prompt"
-        trap - EXIT
+    if ! response=$(provider_invoke_for_phase "specs" "$temp_prompt"); then
+        tempfile_remove "$temp_prompt"
         return 1
     fi
 
-    rm -f "$temp_prompt"
-    trap - EXIT
+    tempfile_remove "$temp_prompt"
 
     # Write spec file
     echo "$response" > "$output_file"

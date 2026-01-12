@@ -77,10 +77,16 @@ detect_phase() {
     fi
 
     if [[ -n "$plan_file" ]]; then
-        # Count total and completed tasks
-        local total_tasks completed_tasks
-        total_tasks=$(grep -c '^[[:space:]]*-[[:space:]]*\[[xX[:space:]]\]' "$plan_file" 2>/dev/null || echo "0")
-        completed_tasks=$(grep -c '^[[:space:]]*-[[:space:]]*\[[xX]\]' "$plan_file" 2>/dev/null || echo "0")
+        # Count total and completed tasks (sanitize to ensure clean integers)
+        local raw_total raw_completed total_tasks completed_tasks
+        raw_total=$(grep -c '^[[:space:]]*-[[:space:]]*\[[xX[:space:]]\]' "$plan_file" 2>/dev/null) || raw_total="0"
+        raw_completed=$(grep -c '^[[:space:]]*-[[:space:]]*\[[xX]\]' "$plan_file" 2>/dev/null) || raw_completed="0"
+
+        # Extract only numeric characters and default to 0
+        total_tasks="${raw_total//[^0-9]/}"
+        total_tasks="${total_tasks:-0}"
+        completed_tasks="${raw_completed//[^0-9]/}"
+        completed_tasks="${completed_tasks:-0}"
 
         if [[ "$total_tasks" -eq 0 ]]; then
             echo "Planning"

@@ -7,7 +7,44 @@
 source "${LIB_DIR}/common.sh"
 
 # Default configuration values
-declare -A CONFIG_DEFAULTS=(
+# Use -g flag for global scope when sourced from within a function
+declare -gA CONFIG_DEFAULTS 2>/dev/null || declare -A CONFIG_DEFAULTS
+CONFIG_DEFAULTS=(
+    # Provider selection
+    [PROVIDER_DEFAULT]="claude"
+    [PROVIDER_CLARIFY]="claude"
+    [PROVIDER_SPECS]="claude"
+    [PROVIDER_ARCH]="claude"
+    [PROVIDER_PLAN]="claude"
+    [PROVIDER_BUILD]="claude"
+    [PROVIDER_GATE]="claude"
+    [PROVIDER_FEEDBACK]="claude"
+
+    # Provider-specific model mappings
+    [PROVIDER_CLAUDE_MODEL_HIGH]="claude-opus-4-20250514"
+    [PROVIDER_CLAUDE_MODEL_MEDIUM]="claude-sonnet-4-5-20250929"
+    [PROVIDER_CLAUDE_MODEL_LOW]="claude-haiku-4-20250319"
+    [PROVIDER_OPENCODE_MODEL_HIGH]="opencode/big-pickle"
+    [PROVIDER_OPENCODE_MODEL_MEDIUM]="opencode/glm-4.7-free"
+    [PROVIDER_OPENCODE_MODEL_LOW]="opencode/grok-code"
+    # Additional model options (not used by default, available for override)
+    [PROVIDER_OPENCODE_MODEL_EXTRA]="opencode/minimax-m2.1-free"
+    
+    # Gemini provider model mappings
+    [PROVIDER_GEMINI_MODEL_HIGH]="gemini-3-pro-preview"
+    [PROVIDER_GEMINI_MODEL_MEDIUM]="gemini-2.5-flash"
+    [PROVIDER_GEMINI_MODEL_LOW]="gemini-2.5-flash"
+
+    # Capability overrides per phase
+    [CAPABILITY_CLARIFY]="high"
+    [CAPABILITY_SPECS]="medium"
+    [CAPABILITY_ARCH]="high"
+    [CAPABILITY_PLAN]="high"
+    [CAPABILITY_BUILD]="high"
+    [CAPABILITY_GATE]="medium"
+    [CAPABILITY_FEEDBACK]="low"
+
+    # Legacy model mappings (backward compatibility)
     [MODEL_CLARIFY]="opus"
     [MODEL_SPECS]="sonnet"
     [MODEL_ARCH]="opus"
@@ -16,29 +53,119 @@ declare -A CONFIG_DEFAULTS=(
     [MODEL_BUILD_SECONDARY]="sonnet"
     [MODEL_GATE]="sonnet"
     [MODEL_FEEDBACK]="haiku"
+
+    # HITL Settings
     [HITL_ENABLED]="false"
     [HITL_MODE]="milestone"
     [HITL_TIMEOUT]=""
+
+    # Build Settings
     [BUILD_MAX_ITERATIONS]="0"
     [BUILD_BACKPRESSURE_TESTS]="true"
     [BUILD_BACKPRESSURE_TYPECHECK]="false"
     [BUILD_BACKPRESSURE_LINT]="true"
+
+    # Retry Settings
     [RETRY_MAX_ATTEMPTS]="3"
     [RETRY_BASE_DELAY]="2"
 )
 
 # Current configuration (populated by config_load)
-declare -A CONFIG
+# Use -g flag for global scope when sourced from within a function
+declare -gA CONFIG 2>/dev/null || declare -A CONFIG
 
 # Valid model names (only set once)
 if [[ ! -v VALID_MODELS ]]; then
-    readonly VALID_MODELS=("opus" "sonnet" "haiku")
+    readonly VALID_MODELS=(
+        "opus" "sonnet" "haiku"  # Legacy model names
+        "claude-opus-4-20250514" "claude-sonnet-4-5-20250929" "claude-haiku-4-20250319"  # Claude models
+        "opencode/grok-code" "opencode/gpt-5-nano" "opencode/glm-4.7-free"  # OpenCode models
+    )
+fi
+
+# Valid provider names (only set once)
+if [[ ! -v VALID_PROVIDERS ]]; then
+    readonly VALID_PROVIDERS=("claude" "opencode" "openai")
+fi
+
+# Valid capability levels (only set once)
+if [[ ! -v VALID_CAPABILITIES ]]; then
+    readonly VALID_CAPABILITIES=("high" "medium" "low")
 fi
 
 # Valid HITL modes (only set once)
 if [[ ! -v VALID_HITL_MODES ]]; then
     readonly VALID_HITL_MODES=("task" "milestone" "uncertain")
 fi
+
+# ==============================================================================
+# O(1) Validation Maps (for performance)
+# ==============================================================================
+
+# Build associative arrays for O(1) validation lookups
+declare -gA _VALID_MODELS_MAP 2>/dev/null || declare -A _VALID_MODELS_MAP
+declare -gA _VALID_PROVIDERS_MAP 2>/dev/null || declare -A _VALID_PROVIDERS_MAP
+declare -gA _VALID_CAPABILITIES_MAP 2>/dev/null || declare -A _VALID_CAPABILITIES_MAP
+declare -gA _VALID_HITL_MODES_MAP 2>/dev/null || declare -A _VALID_HITL_MODES_MAP
+
+# Initialize maps once
+if [[ ! -v _CONFIG_MAPS_INITIALIZED ]]; then
+    for m in "${VALID_MODELS[@]}"; do _VALID_MODELS_MAP["$m"]=1; done
+    for p in "${VALID_PROVIDERS[@]}"; do _VALID_PROVIDERS_MAP["$p"]=1; done
+    for c in "${VALID_CAPABILITIES[@]}"; do _VALID_CAPABILITIES_MAP["$c"]=1; done
+    for h in "${VALID_HITL_MODES[@]}"; do _VALID_HITL_MODES_MAP["$h"]=1; done
+    _CONFIG_MAPS_INITIALIZED=true
+fi
+
+# _is_valid_model(model) - O(1) model validation
+_is_valid_model() {
+    [[ -v "_VALID_MODELS_MAP[$1]" ]]
+}
+
+# _is_valid_provider(provider) - O(1) provider validation
+_is_valid_provider() {
+    [[ -v "_VALID_PROVIDERS_MAP[$1]" ]]
+}
+
+# _is_valid_capability(capability) - O(1) capability validation
+_is_valid_capability() {
+    [[ -v "_VALID_CAPABILITIES_MAP[$1]" ]]
+}
+
+# _is_valid_hitl_mode(mode) - O(1) HITL mode validation (also checks every:N pattern)
+_is_valid_hitl_mode() {
+    [[ -v "_VALID_HITL_MODES_MAP[$1]" ]] || [[ "$1" =~ ^every:[0-9]+$ ]]
+}
+
+# ==============================================================================
+# Helper Functions
+# ==============================================================================
+
+# _apply_provider_defaults() - Apply PROVIDER_DEFAULT to phase-specific providers
+# Called after loading config or env vars to cascade default provider
+_apply_provider_defaults() {
+    local default_provider="${CONFIG_DEFAULTS[PROVIDER_DEFAULT]}"
+    local final_default="${CONFIG[PROVIDER_DEFAULT]}"
+
+    # If the final default is different from the original default (claude),
+    # unset phase-specific providers that still match the original default
+    if [[ "$final_default" != "$default_provider" ]]; then
+        for phase in CLARIFY SPECS ARCH PLAN BUILD GATE FEEDBACK; do
+            local phase_provider="PROVIDER_${phase}"
+            local env_var="WORKFLOW_${phase_provider}"
+            local phase_value="${CONFIG[$phase_provider]:-}"
+            local env_value="${!env_var:-}"
+
+            # Only unset if:
+            # 1. It matches the original default (claude) AND
+            # 2. No environment variable was explicitly set for this phase
+            if [[ "$phase_value" = "$default_provider" && -z "$env_value" ]]; then
+                unset "CONFIG[$phase_provider]"
+                log_debug "Unset $phase_provider to allow PROVIDER_DEFAULT to take effect"
+            fi
+        done
+    fi
+}
 
 # config_load() - Load configuration from file or environment
 config_load() {
@@ -106,6 +233,9 @@ config_load() {
             log_debug "Overrode config with env var: $key=${!env_var}"
         fi
     done
+
+    # Apply provider defaults (consolidated helper - eliminates duplication)
+    _apply_provider_defaults
 
     return 0
 }
@@ -177,6 +307,7 @@ config_validate_no_secrets() {
 }
 
 # config_validate() - Validate all configuration values
+# Uses O(1) lookups for better performance
 config_validate() {
     local errors=0
 
@@ -185,44 +316,43 @@ config_validate() {
         ((errors++))
     fi
 
-    # Validate model selections
+    # Validate model selections (O(1) lookup)
     for key in MODEL_CLARIFY MODEL_SPECS MODEL_ARCH MODEL_PLAN MODEL_BUILD_PRIMARY MODEL_BUILD_SECONDARY MODEL_GATE MODEL_FEEDBACK; do
         local model="${CONFIG[$key]}"
-        local valid=false
-
-        for valid_model in "${VALID_MODELS[@]}"; do
-            if [[ "$model" == "$valid_model" ]]; then
-                valid=true
-                break
-            fi
-        done
-
-        if [[ "$valid" == "false" ]]; then
+        if ! _is_valid_model "$model"; then
             log_error "Invalid model for $key: $model (must be one of: ${VALID_MODELS[*]})"
             ((errors++))
         fi
     done
 
-    # Validate HITL mode
+    # Validate HITL mode (O(1) lookup + pattern check)
     local hitl_mode="${CONFIG[HITL_MODE]}"
-    local valid=false
-
-    for valid_mode in "${VALID_HITL_MODES[@]}"; do
-        if [[ "$hitl_mode" == "$valid_mode" ]]; then
-            valid=true
-            break
-        fi
-    done
-
-    # Also check for every:N pattern
-    if [[ "$hitl_mode" =~ ^every:[0-9]+$ ]]; then
-        valid=true
-    fi
-
-    if [[ "$valid" == "false" ]]; then
+    if ! _is_valid_hitl_mode "$hitl_mode"; then
         log_error "Invalid HITL mode: $hitl_mode (must be one of: ${VALID_HITL_MODES[*]}, or every:N)"
         ((errors++))
     fi
+
+    # Validate provider values (O(1) lookup)
+    for key in PROVIDER_DEFAULT PROVIDER_CLARIFY PROVIDER_SPECS PROVIDER_ARCH PROVIDER_PLAN PROVIDER_BUILD PROVIDER_GATE PROVIDER_FEEDBACK; do
+        if [[ -n "${CONFIG[$key]:-}" ]]; then
+            local value="${CONFIG[$key]}"
+            if ! _is_valid_provider "$value"; then
+                log_error "Invalid provider for $key: $value (must be one of: ${VALID_PROVIDERS[*]})"
+                ((errors++))
+            fi
+        fi
+    done
+
+    # Validate capability values (O(1) lookup)
+    for key in CAPABILITY_CLARIFY CAPABILITY_SPECS CAPABILITY_ARCH CAPABILITY_PLAN CAPABILITY_BUILD CAPABILITY_GATE CAPABILITY_FEEDBACK; do
+        if [[ -n "${CONFIG[$key]:-}" ]]; then
+            local value="${CONFIG[$key]}"
+            if ! _is_valid_capability "$value"; then
+                log_error "Invalid capability for $key: $value (must be one of: ${VALID_CAPABILITIES[*]})"
+                ((errors++))
+            fi
+        fi
+    done
 
     # Validate boolean values
     for key in HITL_ENABLED BUILD_BACKPRESSURE_TESTS BUILD_BACKPRESSURE_TYPECHECK BUILD_BACKPRESSURE_LINT; do

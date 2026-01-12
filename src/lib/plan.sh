@@ -10,11 +10,15 @@ source "${LIB_DIR}/common.sh"
 PLAN_FILE=""
 
 # Plan data structure (associative arrays)
-# Initialize with dummy values to avoid unbound variable errors with set -u
-declare -A PLAN_TASKS=()
-declare -A PLAN_TASK_STATUS=()
-declare -A PLAN_TASK_DEPS=()
-declare -A PLAN_TASK_MILESTONE=()
+# Use -g flag for global scope when sourced from within a function (e.g., BATS tests)
+declare -gA PLAN_TASKS 2>/dev/null || declare -A PLAN_TASKS
+declare -gA PLAN_TASK_STATUS 2>/dev/null || declare -A PLAN_TASK_STATUS
+declare -gA PLAN_TASK_DEPS 2>/dev/null || declare -A PLAN_TASK_DEPS
+declare -gA PLAN_TASK_MILESTONE 2>/dev/null || declare -A PLAN_TASK_MILESTONE
+PLAN_TASKS=()
+PLAN_TASK_STATUS=()
+PLAN_TASK_DEPS=()
+PLAN_TASK_MILESTONE=()
 
 # _find_plan_file() - Locate implementation plan file
 _find_plan_file() {
