@@ -105,6 +105,32 @@ Use --regen to regenerate the plan (this will overwrite existing plan)."
     local model
     model="$(config_get MODEL_PLAN)"
 
+    # Present planning approach alternatives (unless milestone-specific)
+    local planning_approach="summary"
+    if [[ -z "$milestone" ]]; then
+        planning_approach=$(present_alternatives \
+            "Implementation Planning Approach" \
+            "Spec Summaries (Recommended)" "Brief summaries of all specs, fast and efficient" \
+            "Low token use, fast planning, sufficient for most projects" \
+            "May lose some implementation details" \
+            "Full Specifications" "Complete spec content for maximum detail" \
+            "Maximum implementation detail, better for complex projects" \
+            "3x token use, slower planning, more comprehensive" \
+            "Iterative Milestone Planning" "Plan one milestone at a time for better focus" \
+            "More targeted planning, better for large projects, iterative refinement" \
+            "Slower overall (multiple API calls), more interactive" \
+            "A")
+
+        case "$planning_approach" in
+            A) planning_approach="summary" ;;
+            B) planning_approach="full" ;;
+            C) planning_approach="iterative" ;;
+            *) log_error "Invalid choice"; return 1 ;;
+        esac
+    fi
+
+    log_info "Using planning approach: $planning_approach"
+
     # Perform gap analysis on existing code
     log_info "Scanning src/ directory for gap analysis..."
     local gap_analysis
@@ -116,7 +142,7 @@ Use --regen to regenerate the plan (this will overwrite existing plan)."
         _plan_generate_milestone "$project_root" "$model" "$milestone" "${spec_files[@]}"
     else
         log_info "Generating complete implementation plan..."
-        _plan_generate "$project_root" "$model" "$gap_analysis" "${spec_files[@]}"
+        _plan_generate "$project_root" "$model" "$gap_analysis" "${spec_files[@]}" "$planning_approach"
     fi
 
     if [[ -f "$plan_file" ]]; then
@@ -244,14 +270,38 @@ _analyze_code_gap() {
     echo "$gap_analysis"
 }
 
+# _generate_spec_summaries - Create brief summaries of all specs
+# Arguments: spec_files...
+_generate_spec_summaries() {
+    local -a spec_files=("$@")
+    local summaries=""
+
+    for spec_file in "${spec_files[@]}"; do
+        local spec_name
+        spec_name="$(basename "$spec_file" .md)"
+
+        # Extract title and first paragraph only
+        local title
+        title=$(head -1 "$spec_file" | sed 's/^# //')
+
+        local first_para
+        first_para=$(sed -n '/^## /,/^## /p' "$spec_file" | head -10 | grep -v "^##" | tr '\n' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+        summaries+="- **$spec_name**: $first_para"$'\n'
+    done
+
+    echo "$summaries"
+}
+
 # _plan_generate - Generate complete implementation plan
-# Arguments: project_root, model, gap_analysis, spec_files...
+# Arguments: project_root, model, gap_analysis, spec_files..., planning_approach
 _plan_generate() {
     local project_root="$1"
     local model="$2"
     local gap_analysis="$3"
     shift 3
-    local -a spec_files=("$@")
+    local planning_approach="${@: -1}"
+    local -a spec_files=("${@:1:$#-1}")
 
     # Get prompt template
     local prompt_file
@@ -261,25 +311,10 @@ _plan_generate() {
 
     # Load architecture
     local arch_file="$project_root/docs/ARCHITECTURE.md"
-    local arch_content
-    arch_content="$(cat "$arch_file")"
+    local arch_overview
+    arch_overview=$(head -100 "$arch_file")
 
-    # Combine all spec files
-    log_info "Loading ${#spec_files[@]} specification files..."
-    local all_specs=""
-    for spec_file in "${spec_files[@]}"; do
-        local spec_name
-        spec_name="$(basename "$spec_file")"
-        log_debug "  - $spec_name"
-
-        all_specs+="---"$'\n'
-        all_specs+="## Specification: $spec_name"$'\n'
-        all_specs+=""$'\n'
-        all_specs+="$(cat "$spec_file")"$'\n'
-        all_specs+=""$'\n'
-    done
-
-    # Create combined prompt
+    # Create combined prompt based on planning approach
     local temp_prompt
     temp_prompt="$(mktemp)"
     trap 'rm -f "${temp_prompt:-}"' EXIT
@@ -289,18 +324,74 @@ _plan_generate() {
         echo ""
         echo "---"
         echo ""
-        echo "# INPUT: System Architecture"
+        echo "# INPUT: System Architecture Overview"
         echo ""
-        echo "$arch_content"
-        echo ""
-        echo "---"
-        echo ""
-        echo "# INPUT: Feature Specifications"
-        echo ""
-        echo "$all_specs"
+        echo "$arch_overview"
         echo ""
         echo "---"
         echo ""
+
+        # Add specs based on approach
+        case "$planning_approach" in
+            full)
+                echo "# INPUT: Full Feature Specifications"
+                echo ""
+                for spec_file in "${spec_files[@]}"; do
+                    local spec_name
+                    spec_name="$(basename "$spec_file")"
+                    echo "---"
+                    echo "## Specification: $spec_name"
+                    echo ""
+                    cat "$spec_file"
+                    echo ""
+                done
+                echo ""
+                echo "---"
+                echo ""
+                ;;
+            iterative)
+                echo "# INPUT: Feature Specifications Summary (Iterative Mode)"
+                echo ""
+                log_info "Creating spec summaries (${#spec_files[@]} specs)..."
+                local spec_summaries
+                spec_summaries="$(_generate_spec_summaries "${spec_files[@]}")"
+                echo "$spec_summaries"
+                echo ""
+                echo "---"
+                echo ""
+                echo "NOTE: This plan will be generated iteratively by milestone."
+                echo "You can refine each milestone before moving to the next."
+                echo ""
+                echo "---"
+                echo ""
+                ;;
+            summary|*)
+                echo "# INPUT: Feature Specifications Summary"
+                echo ""
+                log_info "Creating spec summaries (${#spec_files[@]} specs)..."
+                local spec_summaries
+                spec_summaries="$(_generate_spec_summaries "${spec_files[@]}")"
+                echo "Full specifications available:"
+                echo ""
+                echo "$spec_summaries"
+                echo ""
+                local spec_list=""
+                for spec_file in "${spec_files[@]}"; do
+                    spec_list+="- $(basename "$spec_file")"$'\n'
+                done
+                echo "---"
+                echo ""
+                echo "# Available Specification Files"
+                echo ""
+                echo "For detailed requirements, refer to these specs in docs/specs/:"
+                echo ""
+                echo "$spec_list"
+                echo ""
+                echo "---"
+                echo ""
+                ;;
+        esac
+
         echo "# INPUT: Gap Analysis"
         echo ""
         echo "$gap_analysis"
@@ -308,10 +399,10 @@ _plan_generate() {
         echo "---"
         echo ""
         echo "**Instructions**:"
-        echo "1. Generate a complete implementation plan"
+        echo "1. Generate a complete implementation plan based on the input"
         echo "2. Organize tasks into milestones following Simple-Lovable-Complete (SLC) approach"
         echo "3. Include explicit task dependencies using 'Dependencies: T001, T002' format"
-        echo "4. Derive test requirements from acceptance criteria in specs"
+        echo "4. Derive test requirements from the feature specifications"
         echo "5. Format test requirements as '**Required tests**: - Test 1 - Test 2'"
         echo "6. Consider gap analysis to prioritize missing functionality"
         echo "7. Mark tasks that can run in parallel"

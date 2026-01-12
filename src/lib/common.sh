@@ -225,3 +225,85 @@ resolve_prompt_template() {
     echo "$prompt_file"
     return 0
 }
+
+# present_alternatives(title, opt1_name, opt1_desc, opt1_pros, opt1_cons, opt2_name, opt2_desc, opt2_pros, opt2_cons, opt3_name, opt3_desc, opt3_pros, opt3_cons, recommended) - Present alternatives and get user choice
+# Arguments: title, then for each of 3 options: name, description, pros (comma-sep), cons (comma-sep), then recommended option (A/B/C)
+# Returns: Selected option (A, B, C, or custom command if user provides custom)
+present_alternatives() {
+    local title="$1"
+    local opt_a_name="$2"
+    local opt_a_desc="$3"
+    local opt_a_pros="$4"
+    local opt_a_cons="$5"
+    local opt_b_name="$6"
+    local opt_b_desc="$7"
+    local opt_b_pros="$8"
+    local opt_b_cons="$9"
+    local opt_c_name="${10}"
+    local opt_c_desc="${11}"
+    local opt_c_pros="${12}"
+    local opt_c_cons="${13}"
+    local recommended="${14}"
+
+    echo ""
+    echo -e "${COLOR_BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${COLOR_RESET}"
+    echo -e "${COLOR_BLUE}$title${COLOR_RESET}"
+    echo -e "${COLOR_BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${COLOR_RESET}"
+    echo ""
+
+    # Option A
+    echo -e "${COLOR_YELLOW}[A]${COLOR_RESET} $opt_a_name"
+    echo "    $opt_a_desc"
+    echo "    Pros: $opt_a_pros"
+    echo "    Cons: $opt_a_cons"
+    echo ""
+
+    # Option B
+    echo -e "${COLOR_YELLOW}[B]${COLOR_RESET} $opt_b_name"
+    echo "    $opt_b_desc"
+    echo "    Pros: $opt_b_pros"
+    echo "    Cons: $opt_b_cons"
+    echo ""
+
+    # Option C
+    echo -e "${COLOR_YELLOW}[C]${COLOR_RESET} $opt_c_name"
+    echo "    $opt_c_desc"
+    echo "    Pros: $opt_c_pros"
+    echo "    Cons: $opt_c_cons"
+    echo ""
+
+    # Recommended
+    if [[ "$recommended" =~ ^[ABC]$ ]]; then
+        local rec_name
+        case "$recommended" in
+            A) rec_name="$opt_a_name" ;;
+            B) rec_name="$opt_b_name" ;;
+            C) rec_name="$opt_c_name" ;;
+        esac
+        echo -e "${COLOR_GREEN}Recommended:${COLOR_RESET} [$recommended] $rec_name"
+        echo ""
+    fi
+
+    # Get user choice
+    echo -n "Select option (A/B/C) or provide custom command: "
+    local choice
+    read -r choice
+    choice=$(echo "$choice" | tr '[:lower:]' '[:upper:]')
+
+    case "$choice" in
+        A|B|C)
+            echo "$choice"
+            return 0
+            ;;
+        *)
+            # Custom option
+            if [[ -n "$choice" ]]; then
+                echo "$choice"
+                return 0
+            else
+                log_error "No option selected"
+                return 1
+            fi
+            ;;
+    esac
+}

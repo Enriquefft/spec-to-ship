@@ -16,6 +16,7 @@ source "$LIB_DIR/claude.sh"
 # cmd_specs - Generate specification files from structured PRD
 cmd_specs() {
     local force=false
+    local context_mode="minimal"
 
     # Parse options
     while [[ $# -gt 0 ]]; do
@@ -23,6 +24,10 @@ cmd_specs() {
             --force)
                 force=true
                 shift
+                ;;
+            --context-mode)
+                context_mode="$2"
+                shift 2
                 ;;
             --help)
                 _specs_help
@@ -39,6 +44,32 @@ cmd_specs() {
 
     # Load config
     config_load
+
+    # Present alternatives for spec generation approach
+    if [[ "$context_mode" == "minimal" ]]; then
+        local choice
+        choice=$(present_alternatives \
+            "Specification Generation Approach" \
+            "Minimal Context" "Activity section only, fast and efficient" \
+            "Low token use, fast generation, best for experienced teams" \
+            "May require more Claude reasoning" \
+            "Full Context" "Activity + full PRD included for maximum clarity" \
+            "Maximum clarity, better for complex specs, more complete output" \
+            "Uses 3x more tokens per spec" \
+            "With Architecture" "Activity + PRD + architecture overview for integration clarity" \
+            "Better integration planning, moderate token use, good for arch-heavy projects" \
+            "Slower generation, moderate token cost" \
+            "A")
+
+        case "$choice" in
+            A) context_mode="minimal" ;;
+            B) context_mode="full" ;;
+            C) context_mode="with_arch" ;;
+            *) log_error "Invalid choice"; return 1 ;;
+        esac
+    fi
+
+    log_info "Using context mode: $context_mode"
 
     # Get project root
     local project_root
@@ -122,7 +153,7 @@ Run 'workflow clarify' first to generate the structured PRD."
 
         # Generate spec file
         log_info "  Generating spec: $spec_file"
-        if _generate_spec "$model" "$prd_content" "$activity_name" "$activity_section" "$spec_path" "$all_spec_files" "$project_root"; then
+        if _generate_spec "$model" "$activity_name" "$activity_section" "$spec_path" "$all_spec_files" "$project_root" "$context_mode" "$prd_content"; then
             log_info "  ${COLOR_GREEN}✓${COLOR_RESET} Generated: $spec_file"
             generated_count=$((generated_count + 1))
         else
@@ -250,15 +281,16 @@ _extract_activity_section() {
 }
 
 # _generate_spec - Generate specification file for an activity
-# Arguments: model, prd_content, activity_name, activity_section, output_file, all_spec_files, project_root
+# Arguments: model, activity_name, activity_section, output_file, all_spec_files, project_root, context_mode, prd_content
 _generate_spec() {
     local model="$1"
-    local prd_content="$2"
-    local activity_name="$3"
-    local activity_section="$4"
-    local output_file="$5"
-    local all_spec_files="$6"
-    local project_root="$7"
+    local activity_name="$2"
+    local activity_section="$3"
+    local output_file="$4"
+    local all_spec_files="$5"
+    local project_root="$6"
+    local context_mode="$7"
+    local prd_content="$8"
 
     # Get prompt template
     local prompt_file
@@ -266,7 +298,7 @@ _generate_spec() {
         return 1
     fi
 
-    # Create combined prompt with context
+    # Create combined prompt based on context mode
     local temp_prompt
     temp_prompt="$(mktemp)"
     trap 'rm -f "${temp_prompt:-}"' EXIT
@@ -276,22 +308,46 @@ _generate_spec() {
         echo ""
         echo "---"
         echo ""
-        echo "# CONTEXT: Full Structured PRD"
-        echo ""
-        echo "$prd_content"
-        echo ""
-        echo "---"
-        echo ""
-        echo "# CONTEXT: All Spec Files Being Generated"
-        echo ""
-        echo "The following spec files will be created from this PRD:"
-        echo ""
-        echo "$all_spec_files"
-        echo ""
-        echo "When listing dependencies, reference other specs using their filenames."
-        echo ""
-        echo "---"
-        echo ""
+
+        # Add context based on selected mode
+        case "$context_mode" in
+            full)
+                echo "# CONTEXT: Full Structured PRD"
+                echo ""
+                echo "$prd_content"
+                echo ""
+                echo "---"
+                echo ""
+                ;;
+            with_arch)
+                echo "# CONTEXT: Full Structured PRD"
+                echo ""
+                echo "$prd_content"
+                echo ""
+                echo "---"
+                echo ""
+                if [[ -f "$project_root/docs/ARCHITECTURE.md" ]]; then
+                    echo "# CONTEXT: Architecture Overview"
+                    echo ""
+                    head -100 "$project_root/docs/ARCHITECTURE.md"
+                    echo ""
+                    echo "---"
+                    echo ""
+                fi
+                ;;
+            minimal|*)
+                # Minimal context - just spec references
+                echo "# CONTEXT: Other Specs in This Project"
+                echo ""
+                echo "For cross-referencing dependencies, other specs include:"
+                echo ""
+                echo "$all_spec_files"
+                echo ""
+                echo "---"
+                echo ""
+                ;;
+        esac
+
         echo "# TASK: Generate Specification for This Activity"
         echo ""
         echo "$activity_section"
