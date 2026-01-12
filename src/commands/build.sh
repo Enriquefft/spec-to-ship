@@ -20,6 +20,10 @@ source "$LIB_DIR/context.sh"
 source "$LIB_DIR/plan.sh"
 # shellcheck source=src/lib/agent.sh
 source "$LIB_DIR/agent.sh"
+# shellcheck source=src/lib/constitution.sh
+source "$LIB_DIR/constitution.sh"
+# shellcheck source=src/lib/checklist.sh
+source "$LIB_DIR/checklist.sh"
 
 # Global flag for signal handling
 BUILD_INTERRUPTED=false
@@ -32,6 +36,7 @@ cmd_build() {
     local no_hitl=false
     local hitl_timeout=""
     local no_git=false
+    local force=false
 
     # Parse options
     while [[ $# -gt 0 ]]; do
@@ -66,7 +71,11 @@ cmd_build() {
             --no-git)
                 no_git=true
                 shift
-                ;; 
+                ;;
+            --force)
+                force=true
+                shift
+                ;;
             --hitl-timeout)
                 if [[ -z "${2:-}" ]]; then
                     die "Option --hitl-timeout requires an argument"
@@ -142,6 +151,32 @@ cmd_build() {
     log_info "Loading implementation plan..."
     if ! plan_load; then
         die "Failed to load implementation plan. Run 'workflow plan' first."
+    fi
+
+    # Quality Gate: Constitution validation (blocks by default)
+    log_info "Validating against constitution..."
+    if ! constitution_validate "$project_root"; then
+        if [[ "$force" != "true" ]]; then
+            die "Constitution validation failed. Use --force to override."
+        fi
+        log_warn "Proceeding despite constitution violations (--force specified)"
+    fi
+
+    # Quality Gate: Checklist validation (blocks by default)
+    local spec_dir="$project_root/specs"
+    if [[ -d "$spec_dir" ]]; then
+        # Find feature spec directory (most recent or specified)
+        local latest_spec_dir
+        latest_spec_dir=$(find "$spec_dir" -mindepth 1 -maxdepth 1 -type d | sort -r | head -1)
+        if [[ -n "$latest_spec_dir" ]]; then
+            log_info "Validating against checklist..."
+            if ! checklist_validate "$latest_spec_dir" "$project_root"; then
+                if [[ "$force" != "true" ]]; then
+                    die "Checklist validation failed. Use --force to override."
+                fi
+                log_warn "Proceeding despite checklist failures (--force specified)"
+            fi
+        fi
     fi
 
     # Setup signal handler for Ctrl+C
@@ -288,6 +323,7 @@ OPTIONS:
                               - disabled: no pauses
     --no-hitl                Disable human-in-the-loop (same as --hitl disabled)
     --no-git                 Run without git integration (no commits)
+    --force                  Override quality gate failures (constitution/checklist)
     --hitl-timeout SECONDS   Timeout for HITL prompts
     --help                   Show this help message
 

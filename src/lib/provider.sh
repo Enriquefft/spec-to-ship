@@ -287,35 +287,106 @@ provider_list_models() {
     "provider_${provider}_list_models"
 }
 
-# High-level convenience function for phase invocation
+# Announce which provider is being used (for transparency)
+provider_announce() {
+    local phase="$1"
+    local provider model capability
+
+    provider="$(provider_get_for_phase "$phase")"
+    capability="$(provider_resolve_capability "$phase")"
+
+    if model="$(provider_resolve_model "$provider" "$capability" 2>/dev/null)"; then
+        log_info "Using provider: ${COLOR_CYAN}${provider}${COLOR_RESET} (${model})"
+        log_info "Phase: ${phase} (capability: ${capability})"
+    else
+        log_info "Using provider: ${COLOR_CYAN}${provider}${COLOR_RESET}"
+        log_info "Phase: ${phase} (capability: ${capability})"
+    fi
+}
+
+# Get fallback chain for a provider
+# Default chain: specified -> opencode -> claude -> gemini
+provider_get_fallback_chain() {
+    local primary="$1"
+    local -a chain=("$primary")
+
+    # Add fallbacks in priority order
+    for fallback in opencode claude gemini; do
+        if [[ "$fallback" != "$primary" ]] && provider_is_registered "$fallback"; then
+            chain+=("$fallback")
+        fi
+    done
+
+    echo "${chain[@]}"
+}
+
+# High-level convenience function for phase invocation with fallback support
 provider_invoke_for_phase() {
     local phase="$1"
     local prompt_file="$2"
     shift 2
     local extra_args=("$@")
-    
+
     local provider model capability
-    
+    local -a fallback_chain
+
     # Get provider for phase
     provider="$(provider_get_for_phase "$phase")"
-    
+
     # Get capability for phase
     capability="$(provider_resolve_capability "$phase")"
-    
-    # Resolve model
-    if ! model="$(provider_resolve_model "$provider" "$capability")"; then
-        log_error "Failed to resolve model for $provider with capability $capability"
-        return 1
-    fi
-    
-    # Validate provider
-    if ! provider_validate "$provider"; then
-        log_error "Provider $provider is not available"
-        return 1
-    fi
-    
-    # Invoke provider
-    provider_invoke "$provider" "$model" "$prompt_file" "${extra_args[@]}"
+
+    # Get fallback chain
+    read -r -a fallback_chain <<< "$(provider_get_fallback_chain "$provider")"
+
+    # Try each provider in fallback chain
+    local attempt=0
+    local max_attempts=${#fallback_chain[@]}
+
+    for try_provider in "${fallback_chain[@]}"; do
+        ((attempt++))
+
+        # Announce provider (transparency)
+        if [[ $attempt -eq 1 ]]; then
+            provider_announce "$phase"
+        else
+            log_warn "Trying fallback provider: ${COLOR_CYAN}${try_provider}${COLOR_RESET} (attempt $attempt/$max_attempts)"
+        fi
+
+        # Resolve model
+        if ! model="$(provider_resolve_model "$try_provider" "$capability" 2>/dev/null)"; then
+            log_debug "No model configured for $try_provider with capability $capability"
+            continue
+        fi
+
+        # Validate provider
+        if ! provider_validate "$try_provider" 2>/dev/null; then
+            log_debug "Provider $try_provider is not available"
+            continue
+        fi
+
+        # Try to invoke provider
+        local result
+        if result=$(provider_invoke "$try_provider" "$model" "$prompt_file" "${extra_args[@]}" 2>&1); then
+            echo "$result"
+            return 0
+        else
+            local exit_code=$?
+            log_warn "Provider $try_provider failed with exit code $exit_code"
+
+            # Check if this is a rate limit or transient error
+            if [[ "$result" == *"rate limit"* ]] || [[ "$result" == *"429"* ]] || [[ "$result" == *"503"* ]]; then
+                log_info "Rate limit or temporary error - trying fallback..."
+                continue
+            fi
+
+            # For other errors, still try fallback but log the error
+            log_debug "Error from $try_provider: ${result:0:200}"
+        fi
+    done
+
+    log_error "All providers in fallback chain failed"
+    return 1
 }
 
 # Auto-detect provider from model name
