@@ -1,0 +1,28 @@
+# Spec-to-Ship Workflow
+.workflow/logs/
+*.log
+.env*
+
+# Bash/Shell
+*.swp
+*.swo
+*~
+.*.sw?
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+*.tmp
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Test artifacts
+test_results/
+coverage/
+
+# Build artifacts
+dist/
+build/
