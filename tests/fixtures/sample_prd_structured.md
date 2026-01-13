@@ -19,6 +19,7 @@
 **Priority**: High
 
 **Acceptance Criteria**:
+
 - [ ] User can add task with title
 - [ ] User can specify priority (high/medium/low)
 - [ ] Task is assigned unique ID
@@ -29,6 +30,7 @@
 **Priority**: High
 
 **Acceptance Criteria**:
+
 - [ ] User can list all tasks
 - [ ] User can filter by status
 - [ ] User can filter by priority
@@ -39,6 +41,7 @@
 **Priority**: Medium
 
 **Acceptance Criteria**:
+
 - [ ] User can mark task as complete by ID
 - [ ] Completion timestamp is recorded
 - [ ] Task status transitions correctly
@@ -48,6 +51,7 @@
 **Priority**: Low
 
 **Acceptance Criteria**:
+
 - [ ] User can export tasks to markdown
 - [ ] Report includes summary statistics
 - [ ] Report is git-friendly

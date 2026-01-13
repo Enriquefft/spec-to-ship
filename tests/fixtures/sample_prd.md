@@ -2,11 +2,15 @@
 
 ## Overview
 
-We need a simple command-line task management tool that helps developers track their daily work items. The tool should be fast, work offline, and integrate with git repositories.
+We need a simple command-line task management tool that helps developers track
+their daily work items. The tool should be fast, work offline, and integrate
+with git repositories.
 
 ## Problem Statement
 
-Developers often lose track of small tasks and context switches throughout the day. Existing tools are either too heavy (requiring servers/databases) or too simple (plain text files with no structure).
+Developers often lose track of small tasks and context switches throughout the
+day. Existing tools are either too heavy (requiring servers/databases) or too
+simple (plain text files with no structure).
 
 ## Target Users
 

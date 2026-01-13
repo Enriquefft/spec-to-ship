@@ -1,10 +1,13 @@
 # Generate Architecture Document Prompt
 
-You are a system architect tasked with designing the technical architecture from feature specifications.
+You are a system architect tasked with designing the technical architecture from
+feature specifications.
 
 ## Your Task
 
-Analyze all feature specifications and create a comprehensive architecture document that defines:
+Analyze all feature specifications and create a comprehensive architecture
+document that defines:
+
 - System components and their responsibilities
 - Data models and relationships
 - API contracts and interfaces
@@ -14,6 +17,7 @@ Analyze all feature specifications and create a comprehensive architecture docum
 ## Input Format
 
 You will receive:
+
 - Multiple specification files (`specs/*.md`)
 - Each spec defines features, requirements, and acceptance criteria
 
@@ -24,10 +28,7 @@ Generate a single architecture document with this structure:
 ```markdown
 # System Architecture Document
 
-**Project**: [Project Name]
-**Version**: 1.0
-**Date**: [Date]
-**Status**: Draft
+**Project**: [Project Name] **Version**: 1.0 **Date**: [Date] **Status**: Draft
 
 ## Executive Summary
 
@@ -36,8 +37,7 @@ Generate a single architecture document with this structure:
 ## Architecture Goals
 
 - **Goal 1**: [e.g., Scalability, Maintainability, Performance]
-- **Goal 2**: [Rationale for architectural decisions]
-...
+- **Goal 2**: [Rationale for architectural decisions] ...
 
 ## System Context
 
@@ -47,8 +47,7 @@ Generate a single architecture document with this structure:
   - Responsibilities: [What they do]
   - Access: [How they interact with system]
 
-- **Actor 2**: [e.g., Administrator]
-  ...
+- **Actor 2**: [e.g., Administrator] ...
 
 ### External Systems
 
@@ -59,9 +58,10 @@ Generate a single architecture document with this structure:
 ## Component Architecture
 
 ### High-Level Components
-
 ```
+
 [ASCII diagram of major components and their relationships]
+
 ```
 
 ### Component 1: [Component Name]
@@ -102,7 +102,9 @@ Generate a single architecture document with this structure:
 ### Data Flow
 
 ```
+
 [Diagram showing how data moves through the system]
+
 ```
 
 ## API Contracts
@@ -113,25 +115,17 @@ Generate a single architecture document with this structure:
 
 **Request**:
 ```
-Method: POST
-Path: /api/v1/resource
-Headers:
-  Authorization: Bearer {token}
-Body:
-  {
-    "field1": "value",
-    "field2": 123
-  }
+
+Method: POST Path: /api/v1/resource Headers: Authorization: Bearer {token} Body:
+{ "field1": "value", "field2": 123 }
+
 ```
 
 **Response**:
 ```
-Status: 200 OK
-Body:
-  {
-    "id": "uuid",
-    "status": "success"
-  }
+
+Status: 200 OK Body: { "id": "uuid", "status": "success" }
+
 ```
 
 **Error Cases**:
@@ -187,7 +181,9 @@ Body:
 ### Infrastructure
 
 ```
+
 [Diagram of deployment topology]
+
 ```
 
 ## Non-Functional Requirements
@@ -215,13 +211,10 @@ Body:
 ### Code Organization
 
 ```
-project/
-├── src/
-│   ├── components/
-│   ├── services/
-│   └── models/
-├── tests/
-└── docs/
+
+project/ ├── src/ │ ├── components/ │ ├── services/ │ └── models/ ├── tests/ └──
+docs/
+
 ```
 
 ### Testing Strategy
@@ -341,26 +334,32 @@ Before finalizing, verify:
 ## Example: Good vs. Bad
 
 **Bad Architecture Decision**:
+
 > "We'll use React for the frontend."
 
 **Good Architecture Decision**:
+
 > "We'll use a component-based frontend framework.
 >
 > **Decision**: React
 >
 > **Rationale**:
+>
 > - Large ecosystem of libraries
 > - Team familiarity
 > - Strong TypeScript support
 > - Virtual DOM for performance
 >
 > **Trade-offs**:
+>
 > - Advantage: Fast development with existing components
 > - Disadvantage: Larger bundle size than alternatives like Preact
 >
 > **Alternatives Considered**:
+>
 > - Vue: Less TypeScript maturity
 > - Angular: Steeper learning curve, more opinionated
 > - Svelte: Smaller ecosystem, less team experience"
 
-Remember: This architecture will guide all implementation work. It must be clear, complete, and well-reasoned.
+Remember: This architecture will guide all implementation work. It must be
+clear, complete, and well-reasoned.

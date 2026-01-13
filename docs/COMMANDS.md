@@ -1,6 +1,7 @@
 # Command Reference
 
-Complete documentation for all Spec-to-Ship commands with options, examples, and usage patterns.
+Complete documentation for all Spec-to-Ship commands with options, examples, and
+usage patterns.
 
 ## Table of Contents
 
@@ -26,14 +27,15 @@ These options must appear **before** the subcommand:
 workflow [GLOBAL_OPTIONS] <command> [COMMAND_OPTIONS]
 ```
 
-| Option | Description |
-|--------|-------------|
-| `--verbose` | Enable debug output to stderr |
+| Option              | Description                     |
+| ------------------- | ------------------------------- |
+| `--verbose`         | Enable debug output to stderr   |
 | `-c, --config PATH` | Use custom config file location |
-| `-h, --help` | Show help message |
-| `-v, --version` | Show version |
+| `-h, --help`        | Show help message               |
+| `-v, --version`     | Show version                    |
 
 **Example:**
+
 ```bash
 workflow --verbose build --max 10
 workflow -c /custom/config.sh status
@@ -53,11 +55,11 @@ workflow init [OPTIONS]
 
 ### Options
 
-| Option | Description |
-|--------|-------------|
+| Option        | Description                           |
+| ------------- | ------------------------------------- |
 | `--from FILE` | Copy existing PRD file to docs/PRD.md |
-| `--force` | Overwrite existing files |
-| `--help` | Show help message |
+| `--force`     | Overwrite existing files              |
+| `--help`      | Show help message                     |
 
 ### Created Structure
 
@@ -96,7 +98,8 @@ workflow init --force
 
 ## clarify
 
-Transform a rough PRD into a structured document with audiences, JTBDs (Jobs To Be Done), activities, and acceptance criteria.
+Transform a rough PRD into a structured document with audiences, JTBDs (Jobs To
+Be Done), activities, and acceptance criteria.
 
 ### Synopsis
 
@@ -106,10 +109,10 @@ workflow clarify [OPTIONS]
 
 ### Options
 
-| Option | Description |
-|--------|-------------|
+| Option             | Description                         |
+| ------------------ | ----------------------------------- |
 | `--no-interactive` | Skip interactive clarification loop |
-| `--help` | Show help message |
+| `--help`           | Show help message                   |
 
 ### Input/Output
 
@@ -120,6 +123,7 @@ workflow clarify [OPTIONS]
 ### Interactive Mode (Default)
 
 Claude asks up to 10 clarifying questions to refine requirements:
+
 1. Analyzes your PRD
 2. Identifies ambiguities
 3. Asks targeted questions
@@ -139,6 +143,7 @@ workflow clarify --no-interactive
 ### Output Structure
 
 `PRD_STRUCTURED.md` includes:
+
 - **Audiences**: Who will use this?
 - **JTBDs**: What jobs are users trying to accomplish?
 - **Activities**: Specific user activities grouped by JTBD
@@ -164,10 +169,10 @@ workflow specs [OPTIONS]
 
 ### Options
 
-| Option | Description |
-|--------|-------------|
+| Option    | Description                    |
+| --------- | ------------------------------ |
 | `--force` | Regenerate existing spec files |
-| `--help` | Show help message |
+| `--help`  | Show help message              |
 
 ### Input/Output
 
@@ -177,6 +182,7 @@ workflow specs [OPTIONS]
 ### Spec File Contents
 
 Each specification includes:
+
 - **Summary**: What this activity accomplishes
 - **Dependencies**: Other specs this depends on
 - **Technical Design**: Implementation approach
@@ -217,10 +223,10 @@ workflow arch [OPTIONS]
 
 ### Options
 
-| Option | Description |
-|--------|-------------|
+| Option     | Description                   |
+| ---------- | ----------------------------- |
 | `--review` | Enter interactive review mode |
-| `--help` | Show help message |
+| `--help`   | Show help message             |
 
 ### Input/Output
 
@@ -248,6 +254,7 @@ workflow arch --review
 ### Interactive Review Mode
 
 When `--review` is enabled:
+
 1. Claude generates initial architecture
 2. Presents it for your review
 3. You can request changes or refinements
@@ -264,7 +271,8 @@ When `--review` is enabled:
 
 ## plan
 
-Generate a prioritized, milestone-based implementation plan with task dependencies.
+Generate a prioritized, milestone-based implementation plan with task
+dependencies.
 
 ### Synopsis
 
@@ -274,11 +282,11 @@ workflow plan [OPTIONS]
 
 ### Options
 
-| Option | Description |
-|--------|-------------|
-| `--regen` | Regenerate from scratch |
+| Option             | Description                       |
+| ------------------ | --------------------------------- |
+| `--regen`          | Regenerate from scratch           |
 | `--milestone NAME` | Filter to show specific milestone |
-| `--help` | Show help message |
+| `--help`           | Show help message                 |
 
 ### Input/Output
 
@@ -295,12 +303,12 @@ workflow plan [OPTIONS]
 
 ### Task States
 
-| State | Description |
-|-------|-------------|
-| `pending` | Not started, dependencies may not be met |
-| `in_progress` | Currently being worked on |
-| `done` | Completed and validated |
-| `blocked` | Cannot proceed due to unmet dependencies |
+| State         | Description                              |
+| ------------- | ---------------------------------------- |
+| `pending`     | Not started, dependencies may not be met |
+| `in_progress` | Currently being worked on                |
+| `done`        | Completed and validated                  |
+| `blocked`     | Cannot proceed due to unmet dependencies |
 
 ### Examples
 
@@ -331,7 +339,8 @@ workflow plan --regen
 
 ## build
 
-Run the autonomous implementation loop, executing tasks one at a time with validation.
+Run the autonomous implementation loop, executing tasks one at a time with
+validation.
 
 ### Synopsis
 
@@ -341,18 +350,19 @@ workflow build [OPTIONS]
 
 ### Options
 
-| Option | Description |
-|--------|-------------|
-| `--max N` | Limit to N iterations (default: unlimited) |
-| `--milestone NAME` | Only execute tasks for specific milestone |
-| `--hitl MODE` | Enable human-in-the-loop (task\|milestone\|uncertain\|every:N) |
-| `--no-hitl` | Disable HITL even if configured |
-| `--hitl-timeout DURATION` | Auto-continue after timeout (e.g., "5m", "1h") |
-| `--help` | Show help message |
+| Option                    | Description                                                    |
+| ------------------------- | -------------------------------------------------------------- |
+| `--max N`                 | Limit to N iterations (default: unlimited)                     |
+| `--milestone NAME`        | Only execute tasks for specific milestone                      |
+| `--hitl MODE`             | Enable human-in-the-loop (task\|milestone\|uncertain\|every:N) |
+| `--no-hitl`               | Disable HITL even if configured                                |
+| `--hitl-timeout DURATION` | Auto-continue after timeout (e.g., "5m", "1h")                 |
+| `--help`                  | Show help message                                              |
 
 ### Build Loop Process
 
 For each iteration:
+
 1. **Select Task**: Highest-priority incomplete task with met dependencies
 2. **Execute**: Search codebase, implement changes, write tests
 3. **Validate**: Run tests, lint, typecheck (if enabled)
@@ -362,12 +372,12 @@ For each iteration:
 
 ### HITL Modes
 
-| Mode | Behavior |
-|------|----------|
-| `task` | Pause after every task completion |
-| `milestone` | Pause after each milestone completes |
-| `uncertain` | Pause only when Claude detects ambiguity |
-| `every:N` | Pause every N iterations (e.g., `every:5`) |
+| Mode        | Behavior                                   |
+| ----------- | ------------------------------------------ |
+| `task`      | Pause after every task completion          |
+| `milestone` | Pause after each milestone completes       |
+| `uncertain` | Pause only when Claude detects ambiguity   |
+| `every:N`   | Pause every N iterations (e.g., `every:5`) |
 
 ### Examples
 
@@ -401,15 +411,16 @@ workflow build --milestone M1 --max 15 --hitl milestone
 
 ### Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| 0 | All tasks complete |
-| 1 | Error occurred |
-| 2 | Max iterations reached (incomplete) |
+| Code | Meaning                             |
+| ---- | ----------------------------------- |
+| 0    | All tasks complete                  |
+| 1    | Error occurred                      |
+| 2    | Max iterations reached (incomplete) |
 
 ### Validation (Backpressure)
 
 Controlled by configuration:
+
 - `BUILD_BACKPRESSURE_TESTS`: Run test suite after each task
 - `BUILD_BACKPRESSURE_LINT`: Run linter after each task
 - `BUILD_BACKPRESSURE_TYPECHECK`: Run type checker after each task
@@ -427,7 +438,8 @@ If validation fails, task is retried or marked blocked.
 
 ## gate
 
-Validate that a milestone is complete by checking acceptance criteria and running tests.
+Validate that a milestone is complete by checking acceptance criteria and
+running tests.
 
 ### Synopsis
 
@@ -437,11 +449,11 @@ workflow gate [OPTIONS]
 
 ### Options
 
-| Option | Description |
-|--------|-------------|
+| Option             | Description                                    |
+| ------------------ | ---------------------------------------------- |
 | `--milestone NAME` | Validate specific milestone (default: current) |
-| `--force` | Proceed even if validation fails |
-| `--help` | Show help message |
+| `--force`          | Proceed even if validation fails               |
+| `--help`           | Show help message                              |
 
 ### Input/Output
 
@@ -485,15 +497,16 @@ workflow gate --milestone M1
 
 ### Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| 0 | Validation passed |
-| 1 | Validation failed |
-| 2 | Failed but forced (with --force) |
+| Code | Meaning                          |
+| ---- | -------------------------------- |
+| 0    | Validation passed                |
+| 1    | Validation failed                |
+| 2    | Failed but forced (with --force) |
 
 ### Recommendations
 
 Gate reports include one of:
+
 - **Proceed**: All checks passed, move to next milestone
 - **Rework**: Fix issues before proceeding
 - **Update Architecture**: Design assumptions violated, revisit architecture
@@ -508,7 +521,8 @@ Gate reports include one of:
 
 ## status
 
-Display current workflow state including phase, milestone progress, and HITL status.
+Display current workflow state including phase, milestone progress, and HITL
+status.
 
 ### Synopsis
 
@@ -518,8 +532,8 @@ workflow status [OPTIONS]
 
 ### Options
 
-| Option | Description |
-|--------|-------------|
+| Option   | Description       |
+| -------- | ----------------- |
 | `--help` | Show help message |
 
 ### Output
@@ -533,13 +547,13 @@ HITL: enabled (not waiting)
 
 ### Workflow Phases
 
-| Phase | Description | Trigger |
-|-------|-------------|---------|
-| Requirements | Initial state | After `init` |
-| Architecture | Specs being created | After `clarify` |
-| Planning | Plan being generated | After `arch` |
-| Execution | Implementation in progress | After `plan` |
-| Complete | All milestones done | All tasks complete |
+| Phase        | Description                | Trigger            |
+| ------------ | -------------------------- | ------------------ |
+| Requirements | Initial state              | After `init`       |
+| Architecture | Specs being created        | After `clarify`    |
+| Planning     | Plan being generated       | After `arch`       |
+| Execution    | Implementation in progress | After `plan`       |
+| Complete     | All milestones done        | All tasks complete |
 
 ### HITL Status
 
@@ -579,15 +593,15 @@ workflow diff [OPTIONS]
 
 ### Options
 
-| Option | Description |
-|--------|-------------|
+| Option             | Description                         |
+| ------------------ | ----------------------------------- |
 | `--milestone NAME` | Show changes for specific milestone |
-| `--help` | Show help message |
+| `--help`           | Show help message                   |
 
 ### Behavior
 
-**Without `--milestone`**: Shows uncommitted changes (staged + unstaged)
-**With `--milestone`**: Shows all commits for that milestone
+**Without `--milestone`**: Shows uncommitted changes (staged + unstaged) **With
+`--milestone`**: Shows all commits for that milestone
 
 ### Examples
 
@@ -635,51 +649,51 @@ workflow config [OPTIONS]
 
 ### Options
 
-| Option | Description |
-|--------|-------------|
-| `--get KEY` | Get specific configuration value |
+| Option            | Description                                |
+| ----------------- | ------------------------------------------ |
+| `--get KEY`       | Get specific configuration value           |
 | `--set KEY=VALUE` | Set configuration value (persists to file) |
-| `--edit` | Open config file in $EDITOR |
-| `--help` | Show help message |
+| `--edit`          | Open config file in $EDITOR                |
+| `--help`          | Show help message                          |
 
 ### Configuration Keys
 
 #### Model Settings
 
-| Key | Values | Default | Description |
-|-----|--------|---------|-------------|
-| `MODEL_CLARIFY` | opus/sonnet/haiku | opus | Model for requirements clarification |
-| `MODEL_SPECS` | opus/sonnet/haiku | sonnet | Model for spec generation |
-| `MODEL_ARCH` | opus/sonnet/haiku | opus | Model for architecture |
-| `MODEL_PLAN` | opus/sonnet/haiku | opus | Model for planning |
-| `MODEL_BUILD_PRIMARY` | opus/sonnet/haiku | opus | Primary model for build loop |
-| `MODEL_BUILD_SECONDARY` | opus/sonnet/haiku | sonnet | Fallback model for build |
-| `MODEL_GATE` | opus/sonnet/haiku | opus | Model for gate validation |
-| `MODEL_FEEDBACK` | opus/sonnet/haiku | sonnet | Model for feedback analysis |
+| Key                     | Values            | Default | Description                          |
+| ----------------------- | ----------------- | ------- | ------------------------------------ |
+| `MODEL_CLARIFY`         | opus/sonnet/haiku | opus    | Model for requirements clarification |
+| `MODEL_SPECS`           | opus/sonnet/haiku | sonnet  | Model for spec generation            |
+| `MODEL_ARCH`            | opus/sonnet/haiku | opus    | Model for architecture               |
+| `MODEL_PLAN`            | opus/sonnet/haiku | opus    | Model for planning                   |
+| `MODEL_BUILD_PRIMARY`   | opus/sonnet/haiku | opus    | Primary model for build loop         |
+| `MODEL_BUILD_SECONDARY` | opus/sonnet/haiku | sonnet  | Fallback model for build             |
+| `MODEL_GATE`            | opus/sonnet/haiku | opus    | Model for gate validation            |
+| `MODEL_FEEDBACK`        | opus/sonnet/haiku | sonnet  | Model for feedback analysis          |
 
 #### HITL Settings
 
-| Key | Values | Default | Description |
-|-----|--------|---------|-------------|
-| `HITL_ENABLED` | true/false | false | Enable human-in-the-loop |
-| `HITL_MODE` | task/milestone/uncertain/every:N | milestone | When to pause |
-| `HITL_TIMEOUT` | duration (e.g., "5m") | "" | Auto-continue timeout |
+| Key            | Values                           | Default   | Description              |
+| -------------- | -------------------------------- | --------- | ------------------------ |
+| `HITL_ENABLED` | true/false                       | false     | Enable human-in-the-loop |
+| `HITL_MODE`    | task/milestone/uncertain/every:N | milestone | When to pause            |
+| `HITL_TIMEOUT` | duration (e.g., "5m")            | ""        | Auto-continue timeout    |
 
 #### Build Settings
 
-| Key | Values | Default | Description |
-|-----|--------|---------|-------------|
-| `BUILD_MAX_ITERATIONS` | integer | 0 | Iteration limit (0=unlimited) |
-| `BUILD_BACKPRESSURE_TESTS` | true/false | true | Run tests after each task |
-| `BUILD_BACKPRESSURE_LINT` | true/false | true | Run linter after each task |
-| `BUILD_BACKPRESSURE_TYPECHECK` | true/false | true | Run type checker after each task |
+| Key                            | Values     | Default | Description                      |
+| ------------------------------ | ---------- | ------- | -------------------------------- |
+| `BUILD_MAX_ITERATIONS`         | integer    | 0       | Iteration limit (0=unlimited)    |
+| `BUILD_BACKPRESSURE_TESTS`     | true/false | true    | Run tests after each task        |
+| `BUILD_BACKPRESSURE_LINT`      | true/false | true    | Run linter after each task       |
+| `BUILD_BACKPRESSURE_TYPECHECK` | true/false | true    | Run type checker after each task |
 
 #### Retry Settings
 
-| Key | Values | Default | Description |
-|-----|--------|---------|-------------|
-| `RETRY_MAX_ATTEMPTS` | integer | 3 | Max retries on failure |
-| `RETRY_BASE_DELAY` | integer (seconds) | 2 | Base delay between retries |
+| Key                  | Values            | Default | Description                |
+| -------------------- | ----------------- | ------- | -------------------------- |
+| `RETRY_MAX_ATTEMPTS` | integer           | 3       | Max retries on failure     |
+| `RETRY_BASE_DELAY`   | integer (seconds) | 2       | Base delay between retries |
 
 ### Examples
 
@@ -737,7 +751,8 @@ workflow config --set BUILD_MAX_ITERATIONS=100
 
 - Configuration is stored in `.workflow/config.sh`
 - Changes persist across sessions
-- Can override with environment variables: `WORKFLOW_MODEL_BUILD_PRIMARY=sonnet workflow build`
+- Can override with environment variables:
+  `WORKFLOW_MODEL_BUILD_PRIMARY=sonnet workflow build`
 - Invalid values are rejected with error message
 
 ---

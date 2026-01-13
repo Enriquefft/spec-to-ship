@@ -1,8 +1,7 @@
 # Specification Quality Checklist: Spec-to-Ship Automated Development Workflow
 
-**Purpose**: Validate specification completeness and quality before proceeding to planning
-**Created**: 2026-01-11
-**Feature**: [spec.md](../spec.md)
+**Purpose**: Validate specification completeness and quality before proceeding
+to planning **Created**: 2026-01-11 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
 
@@ -33,6 +32,8 @@
 
 - All items pass validation
 - Spec is ready for `/speckit.clarify` or `/speckit.plan`
-- The PRD provided was comprehensive, allowing a complete specification without clarification markers
+- The PRD provided was comprehensive, allowing a complete specification without
+  clarification markers
 - All 9 user stories map directly to the 9 activities defined in the source PRD
-- Success criteria derived from the non-functional requirements in the source document
+- Success criteria derived from the non-functional requirements in the source
+  document

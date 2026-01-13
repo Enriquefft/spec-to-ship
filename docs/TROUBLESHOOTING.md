@@ -208,6 +208,7 @@ grep -A 5 "dependencies:" docs/IMPLEMENTATION_PLAN.md
 ### Build Loop Stuck or Repeating
 
 **Symptoms**:
+
 - Same task attempted multiple times
 - No progress after many iterations
 - Infinite loop behavior
@@ -243,6 +244,7 @@ workflow build --hitl task --max 10
 ### Validation Failures After Every Task
 
 **Symptoms**:
+
 - Tests fail consistently
 - Lint errors block progress
 - Typecheck failures
@@ -291,7 +293,8 @@ workflow config --set BUILD_BACKPRESSURE_TYPECHECK=false
 # Update tsconfig.json, add type definitions, etc.
 ```
 
-**Note**: Disabling validations reduces quality checks. Re-enable after fixing root causes.
+**Note**: Disabling validations reduces quality checks. Re-enable after fixing
+root causes.
 
 ---
 
@@ -330,6 +333,7 @@ workflow build
 ### Build Completes But Code Doesn't Work
 
 **Symptoms**:
+
 - Tasks marked done but features broken
 - Tests pass but functionality wrong
 - Acceptance criteria not actually met
@@ -519,6 +523,7 @@ which jq envsubst
 ### Claude API Timeouts
 
 **Symptoms**:
+
 - Requests timing out
 - Connection errors
 - Rate limit errors
@@ -602,6 +607,7 @@ workflow build --hitl task --hitl-timeout 5m
 ```
 
 **Valid timeout formats**:
+
 - `30s` - 30 seconds
 - `5m` - 5 minutes
 - `1h` - 1 hour
@@ -806,6 +812,7 @@ cat debug-report.txt
 ### Report Issues
 
 When reporting issues, include:
+
 1. Command that failed
 2. Error message
 3. Output of `workflow --version`
@@ -819,15 +826,15 @@ When reporting issues, include:
 
 ## Quick Reference: Common Fixes
 
-| Problem | Quick Fix |
-|---------|-----------|
-| Build stuck | `workflow build --hitl task --max 5` |
-| Tests failing | `workflow config --set BUILD_BACKPRESSURE_TESTS=false` |
-| Too slow | `workflow config --set MODEL_BUILD_PRIMARY=sonnet` |
-| Wrong state | Edit `docs/IMPLEMENTATION_PLAN.md`, change task state |
-| Corrupted plan | `workflow plan --regen` |
-| Uncommitted changes | `git reset --hard HEAD` |
-| API timeout | `workflow config --set RETRY_MAX_ATTEMPTS=5` |
-| Task blocked | Complete dependencies or edit plan |
-| Config not working | `unset WORKFLOW_*` (remove env overrides) |
-| Need oversight | `workflow build --hitl milestone` |
+| Problem             | Quick Fix                                              |
+| ------------------- | ------------------------------------------------------ |
+| Build stuck         | `workflow build --hitl task --max 5`                   |
+| Tests failing       | `workflow config --set BUILD_BACKPRESSURE_TESTS=false` |
+| Too slow            | `workflow config --set MODEL_BUILD_PRIMARY=sonnet`     |
+| Wrong state         | Edit `docs/IMPLEMENTATION_PLAN.md`, change task state  |
+| Corrupted plan      | `workflow plan --regen`                                |
+| Uncommitted changes | `git reset --hard HEAD`                                |
+| API timeout         | `workflow config --set RETRY_MAX_ATTEMPTS=5`           |
+| Task blocked        | Complete dependencies or edit plan                     |
+| Config not working  | `unset WORKFLOW_*` (remove env overrides)              |
+| Need oversight      | `workflow build --hitl milestone`                      |

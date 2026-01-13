@@ -1,6 +1,7 @@
 # Edge Case Handling
 
-This document describes how the Spec-to-Ship workflow handles various edge cases and exceptional situations.
+This document describes how the Spec-to-Ship workflow handles various edge cases
+and exceptional situations.
 
 ## Table of Contents
 
@@ -16,7 +17,8 @@ This document describes how the Spec-to-Ship workflow handles various edge cases
 
 ## Mid-Commit Interruption
 
-**Scenario**: User interrupts `workflow build` with Ctrl+C during a git commit operation.
+**Scenario**: User interrupts `workflow build` with Ctrl+C during a git commit
+operation.
 
 **Handling**:
 
@@ -25,10 +27,12 @@ This document describes how the Spec-to-Ship workflow handles various edge cases
 3. Git operations use `git_atomic_commit` which ensures:
    - All changes are staged before commit
    - Commit happens as single atomic operation
-   - If interrupted before commit: changes remain staged (can be reviewed/committed manually)
+   - If interrupted before commit: changes remain staged (can be
+     reviewed/committed manually)
    - If interrupted after commit: commit is complete and safe
 
 **Recovery**:
+
 ```bash
 # Check git status
 git status
@@ -42,13 +46,15 @@ git reset  # to unstage
 workflow build
 ```
 
-**Prevention**: The build loop updates the implementation plan AFTER successful commit, so interruption won't mark incomplete work as done.
+**Prevention**: The build loop updates the implementation plan AFTER successful
+commit, so interruption won't mark incomplete work as done.
 
 ---
 
 ## Claude API Rate Limits
 
-**Scenario**: Claude API returns rate limit errors (429 status) or quota exceeded.
+**Scenario**: Claude API returns rate limit errors (429 status) or quota
+exceeded.
 
 **Handling**:
 
@@ -58,6 +64,7 @@ workflow build
    - Backoff multiplier: 2x per attempt
 
 2. Retry sequence:
+
    ```
    Attempt 1: Immediate
    Attempt 2: Wait 2 seconds
@@ -70,6 +77,7 @@ workflow build
    - Log error with instructions after final failure
 
 **Configuration**:
+
 ```bash
 # In .workflow/config.sh
 RETRY_MAX_ATTEMPTS=5      # More retries
@@ -77,11 +85,13 @@ RETRY_BASE_DELAY=10       # Longer initial delay
 ```
 
 **Recovery**:
+
 - Wait for rate limit reset (typically 1 minute to 1 hour)
 - Check API status: https://status.anthropic.com
 - Resume with: `workflow build`
 
 **Alternative**: Switch to different model tiers:
+
 ```bash
 # Use faster, lower-tier model for build iterations
 MODEL_BUILD_PRIMARY="haiku"  # Instead of "opus"
@@ -98,18 +108,21 @@ MODEL_BUILD_PRIMARY="haiku"  # Instead of "opus"
 **Detection**: `require_command` checks for required binaries
 
 **Common Missing Dependencies**:
+
 - `git` - Version control system
 - `jq` - JSON processing
 - `envsubst` - Template variable substitution
 - `bats` - Testing framework (development only)
 
 **Handling**:
+
 ```bash
 workflow: line 42: require_command: git
 ERROR: Required command not found: git
 ```
 
 **Recovery**:
+
 ```bash
 # Debian/Ubuntu
 sudo apt-get install git jq gettext-base
@@ -126,16 +139,19 @@ sudo pacman -S git jq envsubst
 **Detection**: `require_file` checks for critical files
 
 **Examples**:
+
 - `docs/PRD.md` required for `workflow clarify`
 - `docs/PRD_STRUCTURED.md` required for `workflow specs`
 - `.workflow/config.sh` expected (but uses defaults if missing)
 
 **Handling**:
+
 ```bash
 ERROR: Required file not found: docs/PRD.md
 ```
 
 **Recovery**: Create missing file or run prerequisite command:
+
 ```bash
 # For missing PRD
 echo "# Product Requirements" > docs/PRD.md
@@ -154,6 +170,7 @@ workflow init
 **Scenario**: User runs `workflow init` from a subdirectory of a git repository.
 
 **Detection**:
+
 ```bash
 git_root=$(get_git_root)
 current_dir=$(pwd)
@@ -167,6 +184,7 @@ fi
 
 1. System detects git root using `git rev-parse --show-toplevel`
 2. Warns user about non-standard location:
+
    ```
    WARNING: Running in subdirectory of git repository
    Git root: /home/user/project
@@ -177,18 +195,21 @@ fi
 
 3. User options:
    - **Recommended**: `cd` to git root and re-run
-   - **Alternative**: Continue in subdirectory (workflow will work but files may be in unexpected locations)
+   - **Alternative**: Continue in subdirectory (workflow will work but files may
+     be in unexpected locations)
 
 **Configuration Location**:
 
 The system uses git root for configuration and logs:
+
 ```bash
 .workflow/          # At git root
   config.sh
   logs/
 ```
 
-If run from subdirectory, files are still created at git root, not current directory.
+If run from subdirectory, files are still created at git root, not current
+directory.
 
 ---
 
@@ -196,12 +217,14 @@ If run from subdirectory, files are still created at git root, not current direc
 
 ### Invalid Configuration Values
 
-**Scenario**: Config file contains invalid model names, boolean values, or other settings.
+**Scenario**: Config file contains invalid model names, boolean values, or other
+settings.
 
 **Handling**:
 
 1. `config_validate()` checks all settings
 2. Reports all validation errors at once:
+
    ```
    ERROR: Invalid model for MODEL_BUILD_PRIMARY: gpt4 (must be one of: opus sonnet haiku)
    ERROR: Invalid boolean value for HITL_ENABLED: yes (must be true or false)
@@ -210,6 +233,7 @@ If run from subdirectory, files are still created at git root, not current direc
 3. System exits with code 1
 
 **Recovery**:
+
 ```bash
 # Edit configuration
 workflow config --edit
@@ -228,7 +252,7 @@ workflow config --get MODEL_BUILD_PRIMARY
 **Handling**:
 
 1. `config_validate_no_secrets()` scans for common secret patterns:
-   - API keys (sk-*, ghp_*, etc.)
+   - API keys (sk-_, ghp\__, etc.)
    - Hash values (MD5, SHA1, SHA256)
    - Private keys
 
@@ -239,6 +263,7 @@ workflow config --get MODEL_BUILD_PRIMARY
    ```
 
 **Recovery**:
+
 ```bash
 # Remove secret from config file
 vim .workflow/config.sh
@@ -250,7 +275,8 @@ export WORKFLOW_CLAUDE_API_KEY="sk-..."
 echo 'export WORKFLOW_CLAUDE_API_KEY="sk-..."' >> ~/.bashrc
 ```
 
-**Logging Protection**: Secrets are automatically redacted from logs (see `_sanitize_message` in `src/lib/common.sh`).
+**Logging Protection**: Secrets are automatically redacted from logs (see
+`_sanitize_message` in `src/lib/common.sh`).
 
 ---
 
@@ -261,16 +287,19 @@ echo 'export WORKFLOW_CLAUDE_API_KEY="sk-..."' >> ~/.bashrc
 **Scenario**: Cannot create directories or write files.
 
 **Common Causes**:
+
 - Running in read-only directory
 - Insufficient permissions on target directory
 - SELinux or AppArmor restrictions
 
 **Handling**:
+
 ```bash
 ERROR: Failed to create directory: .workflow/logs
 ```
 
 **Recovery**:
+
 ```bash
 # Check permissions
 ls -ld .workflow/
@@ -290,6 +319,7 @@ workflow init
 **Handling**: System fails with error when disk is full
 
 **Recovery**:
+
 ```bash
 # Check disk space
 df -h
@@ -316,6 +346,7 @@ git gc --aggressive
 3. Logs warning for transient failures
 
 **User sees**:
+
 ```
 WARN: Claude API request failed (attempt 1/3): Connection timeout
 WARN: Retrying in 2 seconds...
@@ -335,6 +366,7 @@ WARN: Retrying in 2 seconds...
    ```
 
 **Recovery**:
+
 ```bash
 # Check connectivity
 ping api.anthropic.com
@@ -348,7 +380,8 @@ workflow build
 
 ### Git Push Failures
 
-**Scenario**: `workflow build` with `BUILD_PUSH_AFTER_COMMIT=true` fails to push.
+**Scenario**: `workflow build` with `BUILD_PUSH_AFTER_COMMIT=true` fails to
+push.
 
 **Handling**:
 
@@ -357,6 +390,7 @@ workflow build
 3. User can push manually later
 
 **Configuration**:
+
 ```bash
 # Disable auto-push if connectivity is unreliable
 BUILD_PUSH_AFTER_COMMIT=false
@@ -368,13 +402,14 @@ BUILD_PUSH_AFTER_COMMIT=false
 
 Understanding exit codes helps with automation and error handling:
 
-| Code | Meaning | Examples |
-|------|---------|----------|
-| 0 | Success | All operations completed successfully |
-| 1 | Error | Missing files, validation failures, API errors |
-| 2 | Partial Success | Max iterations reached, gate failed but forced |
+| Code | Meaning         | Examples                                       |
+| ---- | --------------- | ---------------------------------------------- |
+| 0    | Success         | All operations completed successfully          |
+| 1    | Error           | Missing files, validation failures, API errors |
+| 2    | Partial Success | Max iterations reached, gate failed but forced |
 
 **Usage in scripts**:
+
 ```bash
 if workflow build --max 10; then
     echo "Build completed successfully"
@@ -395,12 +430,14 @@ fi
 3. **Run with --verbose** when debugging issues
 4. **Check logs** in `.workflow/logs/` for detailed error information
 5. **Use configuration validation** before long-running operations:
+
    ```bash
    workflow config --get MODEL_BUILD_PRIMARY  # Validates config
    ```
 
 6. **Monitor disk space** if running many build iterations
-7. **Keep git repository clean** - commit or stash changes before running workflow
+7. **Keep git repository clean** - commit or stash changes before running
+   workflow
 8. **Test API connectivity** before starting long operations:
    ```bash
    # Quick test
@@ -420,6 +457,7 @@ If you encounter an edge case not documented here:
 5. Report issue: [GitHub Issues](https://github.com/your-org/spec-to-ship)
 
 For emergency recovery:
+
 ```bash
 # Reset to clean state
 git reset --hard HEAD

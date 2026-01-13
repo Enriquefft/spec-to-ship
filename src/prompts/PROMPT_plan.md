@@ -1,10 +1,13 @@
 # Generate Implementation Plan Prompt
 
-You are an engineering lead creating a detailed implementation plan from specifications and architecture.
+You are an engineering lead creating a detailed implementation plan from
+specifications and architecture.
 
 ## Your Task
 
-Transform specifications and architecture into an actionable implementation plan with:
+Transform specifications and architecture into an actionable implementation plan
+with:
+
 - Milestones with clear deliverables
 - Tasks with dependencies
 - Test-first approach
@@ -13,6 +16,7 @@ Transform specifications and architecture into an actionable implementation plan
 ## Input Format
 
 You will receive:
+
 - **Specifications** (`specs/*.md`): Feature requirements
 - **Architecture** (`docs/ARCHITECTURE.md`): System design
 - Context about project constraints and team
@@ -24,9 +28,7 @@ Generate an implementation plan with this structure:
 ```markdown
 # Implementation Plan: [Project Name]
 
-**Created**: [Date]
-**Version**: 1.0
-**Estimated Duration**: [Time estimate]
+**Created**: [Date] **Version**: 1.0 **Estimated Duration**: [Time estimate]
 
 ## Overview
 
@@ -39,10 +41,12 @@ Generate an implementation plan with this structure:
 **Goal**: [What this milestone achieves]
 
 **Deliverables**:
+
 - [Deliverable 1]
 - [Deliverable 2]
 
 **Success Criteria**:
+
 - [ ] Criterion 1
 - [ ] Criterion 2
 
@@ -51,11 +55,13 @@ Generate an implementation plan with this structure:
 ---
 
 ### Milestone 2: [Name] (Week 3-4)
+
 ...
 
 ## Task Summary
 
-**IMPORTANT**: This checklist format is required for the build system to parse and execute tasks.
+**IMPORTANT**: This checklist format is required for the build system to parse
+and execute tasks.
 
 ### Milestone 1
 
@@ -66,9 +72,10 @@ Generate an implementation plan with this structure:
 ### Milestone 2
 
 - [ ] T004 [M2] Brief task description - depends: T002, T003 - complexity: high
-...
+      ...
 
 **Format Rules**:
+
 - Start with `- [ ]` for pending tasks or `- [X]` for completed tasks
 - Follow with task ID (T001, T002, etc.)
 - Include `[MX]` milestone marker
@@ -79,9 +86,13 @@ Generate an implementation plan with this structure:
 - Keep description concise (one line)
 
 **Complexity Guidelines** (for adaptive model selection):
-- `complexity: low` - Documentation, config changes, simple tests, renaming, formatting
-- `complexity: medium` - Standard CRUD, bug fixes, test suites, refactoring existing code
-- `complexity: high` - Complex algorithms, architectural decisions, multi-file refactors, new features
+
+- `complexity: low` - Documentation, config changes, simple tests, renaming,
+  formatting
+- `complexity: medium` - Standard CRUD, bug fixes, test suites, refactoring
+  existing code
+- `complexity: high` - Complex algorithms, architectural decisions, multi-file
+  refactors, new features
 
 ---
 
@@ -103,11 +114,13 @@ Generate an implementation plan with this structure:
 
 #### T001 - Setup Project Structure
 
-**Description**: Initialize project with directory structure, build tools, and configuration
+**Description**: Initialize project with directory structure, build tools, and
+configuration
 
 **Dependencies**: None
 
 **Acceptance Criteria**:
+
 - [ ] Directory structure matches architecture
 - [ ] Package.json/requirements.txt/etc. created
 - [ ] Linter and formatter configured
@@ -126,6 +139,7 @@ Generate an implementation plan with this structure:
 **Dependencies**: T001
 
 **Acceptance Criteria**:
+
 - [ ] Development server runs locally
 - [ ] Hot reload works
 - [ ] Debug configuration present
@@ -145,6 +159,7 @@ Generate an implementation plan with this structure:
 **Dependencies**: T001
 
 **Acceptance Criteria**:
+
 - [ ] All entities from architecture defined
 - [ ] Relationships implemented
 - [ ] Validation rules added
@@ -163,6 +178,7 @@ Generate an implementation plan with this structure:
 **Dependencies**: T003
 
 **Acceptance Criteria**:
+
 - [ ] Test coverage > 80%
 - [ ] Edge cases covered
 - [ ] Validation tests pass
@@ -189,9 +205,11 @@ Generate an implementation plan with this structure:
 
 ### Parallel Execution
 
-Tasks marked **Parallel: Yes** can be worked on simultaneously by different team members or agents.
+Tasks marked **Parallel: Yes** can be worked on simultaneously by different team
+members or agents.
 
 **Example Parallel Groups**:
+
 - **Group A**: T001, T002, T003 (Setup tasks, no conflicts)
 - **Group B**: T010, T011 (Different modules)
 
@@ -199,11 +217,10 @@ Tasks marked **Parallel: Yes** can be worked on simultaneously by different team
 
 **Dependency Graph**:
 ```
-T001 (Setup)
-  ├─> T003 (Models)
-  │     └─> T004 (Model Tests)
-  │           └─> T007 (Services)
-  └─> T002 (Dev Environment)
+
+T001 (Setup) ├─> T003 (Models) │ └─> T004 (Model Tests) │ └─> T007 (Services)
+└─> T002 (Dev Environment)
+
 ```
 
 ### Risk Mitigation
@@ -326,10 +343,11 @@ T001 (Setup)
 ## Timeline
 
 ```
-Week 1-2:  M1 - Foundation ████████░░░░░░░░░░░░
-Week 3-4:  M2 - Core       ░░░░░░░░████████░░░░
-Week 5-6:  M3 - Integration ░░░░░░░░░░░░████████
-Week 7-8:  M4 - Polish     ░░░░░░░░░░░░░░░░████
+
+Week 1-2: M1 - Foundation ████████░░░░░░░░░░░░ Week 3-4: M2 - Core
+░░░░░░░░████████░░░░ Week 5-6: M3 - Integration ░░░░░░░░░░░░████████ Week 7-8:
+M4 - Polish ░░░░░░░░░░░░░░░░████
+
 ```
 
 ---
@@ -386,12 +404,14 @@ Week 7-8:  M4 - Polish     ░░░░░░░░░░░░░░░░█�
 ### Test-First Indicators
 
 Mark tasks that should use TDD:
+
 - **[TDD]** prefix for tasks where tests come first
 - Especially for: APIs, data models, business logic
 
 ### Parallel Markers
 
 Mark tasks that can run parallel:
+
 - **[P]** prefix or explicit "Parallel: Yes"
 - Consider: Different files, different modules, independent features
 
@@ -434,20 +454,24 @@ Before finalizing the plan:
 ## Example: Good vs. Bad Tasks
 
 **Bad - No Task Summary Entry**:
+
 ```markdown
 ## Tasks
 
 #### T042 - Implement user management
+
 ...detailed spec...
 ```
 
 **Good - Has Both Checklist Entry AND Detailed Spec**:
+
 ```markdown
 ## Task Summary
 
 ### Milestone 2
 
-- [ ] T042 [M2] Implement User Registration API - depends: T015, T023 - complexity: high
+- [ ] T042 [M2] Implement User Registration API - depends: T015, T023 -
+      complexity: high
 
 ## Detailed Task Specifications
 
@@ -455,10 +479,11 @@ Before finalizing the plan:
 
 **Description**: Create POST /api/users endpoint per architecture
 
-**Milestone**: M2
-**Dependencies**: T015 (Database setup), T023 (Auth middleware)
+**Milestone**: M2 **Dependencies**: T015 (Database setup), T023 (Auth
+middleware)
 
 **Acceptance Criteria**:
+
 - [ ] Accepts email, password, name in request body
 - [ ] Validates email format and password strength
 - [ ] Creates user record in database
@@ -467,10 +492,9 @@ Before finalizing the plan:
 - [ ] Returns 409 if email already exists
 - [ ] Hashes password before storing
 
-**Files**: `src/api/users.ts, src/services/auth.ts`
-**Test File**: `tests/api/users.test.ts`
-**Estimated Effort**: 4 hours
-**Parallel**: No
+**Files**: `src/api/users.ts, src/services/auth.ts` **Test File**:
+`tests/api/users.test.ts` **Estimated Effort**: 4 hours **Parallel**: No
 ```
 
-Remember: This plan will guide the entire implementation. It must be detailed, realistic, and actionable.
+Remember: This plan will guide the entire implementation. It must be detailed,
+realistic, and actionable.

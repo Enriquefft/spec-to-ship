@@ -1,7 +1,6 @@
 # Quickstart: Spec-to-Ship Development
 
-**Date**: 2026-01-11
-**Branch**: `001-spec-to-ship-workflow`
+**Date**: 2026-01-11 **Branch**: `001-spec-to-ship-workflow`
 
 ## Prerequisites
 
@@ -94,20 +93,21 @@ workflow status
 
 ## Key Files to Know
 
-| File | Purpose |
-|------|---------|
-| `src/workflow` | Main entry point |
+| File                | Purpose                 |
+| ------------------- | ----------------------- |
+| `src/workflow`      | Main entry point        |
 | `src/lib/common.sh` | Logging, error handling |
-| `src/lib/claude.sh` | Claude CLI wrapper |
-| `src/lib/hitl.sh` | Human-in-the-loop logic |
-| `src/commands/*.sh` | Individual subcommands |
-| `src/prompts/*.md` | AI prompt templates |
+| `src/lib/claude.sh` | Claude CLI wrapper      |
+| `src/lib/hitl.sh`   | Human-in-the-loop logic |
+| `src/commands/*.sh` | Individual subcommands  |
+| `src/prompts/*.md`  | AI prompt templates     |
 
 ## Common Development Tasks
 
 ### Adding a New Subcommand
 
 1. Create `src/commands/newcmd.sh`:
+
 ```bash
 #!/usr/bin/env bash
 # workflow newcmd - Description
@@ -130,6 +130,7 @@ cmd_newcmd() {
 ```
 
 2. Register in `src/workflow`:
+
 ```bash
 case "$cmd" in
     newcmd) source "$COMMANDS_DIR/newcmd.sh"; cmd_newcmd "$@" ;;
@@ -200,6 +201,7 @@ teardown() {
 ### Fixtures (`tests/fixtures/`)
 
 Sample data for testing:
+
 - `sample_prd.md` - Example PRD for clarify tests
 - `sample_spec.md` - Example spec for plan tests
 - `sample_plan.md` - Example plan for build tests

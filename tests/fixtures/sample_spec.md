@@ -2,7 +2,8 @@
 
 ## Summary
 
-Implement core task management operations (add, list, complete) with local file storage in git repositories.
+Implement core task management operations (add, list, complete) with local file
+storage in git repositories.
 
 ## Dependencies
 

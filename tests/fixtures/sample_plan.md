@@ -2,7 +2,8 @@
 
 ## Overview
 
-Build command-line task management tool in bash with JSON storage and git integration.
+Build command-line task management tool in bash with JSON storage and git
+integration.
 
 ## Milestones
 
@@ -33,6 +34,7 @@ Build command-line task management tool in bash with JSON storage and git integr
   - required tests: List empty, list with tasks, output format
 
 **Exit Criteria**:
+
 - Can add and list tasks
 - Data persists between runs
 - All unit tests passing
@@ -60,6 +62,7 @@ Build command-line task management tool in bash with JSON storage and git integr
   - required tests: Filter by high/medium/low priority
 
 **Exit Criteria**:
+
 - Full CRUD operations working
 - Filtering functional
 - Integration tests passing
@@ -87,6 +90,7 @@ Build command-line task management tool in bash with JSON storage and git integr
   - required tests: Invalid inputs handled gracefully
 
 **Exit Criteria**:
+
 - Performance targets met
 - Error cases handled
 - User documentation complete
@@ -101,6 +105,7 @@ Build command-line task management tool in bash with JSON storage and git integr
 ## Dependencies
 
 External tools required:
+
 - bash 4.0+
 - jq
 - git

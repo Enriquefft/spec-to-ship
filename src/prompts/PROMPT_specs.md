@@ -1,14 +1,17 @@
 # Generate Specifications Prompt
 
-You are a technical writer tasked with generating detailed feature specifications from a structured PRD.
+You are a technical writer tasked with generating detailed feature
+specifications from a structured PRD.
 
 ## Your Task
 
-For each Activity in the provided Structured PRD, generate a separate specification file that can be implemented independently.
+For each Activity in the provided Structured PRD, generate a separate
+specification file that can be implemented independently.
 
 ## Input Format
 
 You will receive a Structured PRD with:
+
 - Audiences
 - Jobs To Be Done
 - Activities (with acceptance criteria)
@@ -20,9 +23,7 @@ Generate one specification file per Activity with this structure:
 ```markdown
 # Feature Specification: [Activity Name]
 
-**Priority**: [High / Medium / Low]
-**Status**: Draft
-**Created**: [Date]
+**Priority**: [High / Medium / Low] **Status**: Draft **Created**: [Date]
 
 ## Overview
 
@@ -32,16 +33,16 @@ Generate one specification file per Activity with this structure:
 
 ### Story 1: [User Story Title]
 
-As a [user type],
-I want to [action],
-So that [benefit].
+As a [user type], I want to [action], So that [benefit].
 
 **Acceptance Criteria**:
+
 - [ ] Criterion 1
 - [ ] Criterion 2
 - [ ] Criterion 3
 
 ### Story 2: [User Story Title]
+
 ...
 
 ## Functional Requirements
@@ -49,28 +50,24 @@ So that [benefit].
 ### Core Requirements
 
 - **FR-001**: [Requirement description with specific behavior]
-- **FR-002**: [Requirement description]
-...
+- **FR-002**: [Requirement description] ...
 
 ### Edge Cases
 
 - **EC-001**: [Edge case scenario and expected behavior]
-- **EC-002**: [Edge case scenario]
-...
+- **EC-002**: [Edge case scenario] ...
 
 ## Non-Functional Requirements
 
 - **NFR-001**: [Performance, security, scalability, etc.]
-- **NFR-002**: [Quality attribute]
-...
+- **NFR-002**: [Quality attribute] ...
 
 ## Success Criteria
 
 How will we measure success?
 
 - **SC-001**: [Measurable outcome]
-- **SC-002**: [Measurable outcome]
-...
+- **SC-002**: [Measurable outcome] ...
 
 ## Dependencies
 
@@ -78,7 +75,8 @@ How will we measure success?
 - `another-spec.md` - [Description]
 - [External systems or services needed]
 
-**Note**: When referencing other features from the same PRD, use their kebab-case spec filenames
+**Note**: When referencing other features from the same PRD, use their
+kebab-case spec filenames
 
 ## Out of Scope
 
@@ -94,11 +92,11 @@ How will we measure success?
 
 ### Scenario 1: [Happy Path]
 
-**Given**: [Initial state]
-**When**: [Action performed]
-**Then**: [Expected result]
+**Given**: [Initial state] **When**: [Action performed] **Then**: [Expected
+result]
 
 ### Scenario 2: [Error Case]
+
 ...
 ```
 
@@ -107,7 +105,8 @@ How will we measure success?
 1. **One file per Activity**: Each activity becomes a separate spec file
 2. **Filename convention**: Use kebab-case: `activity-name.md`
 3. **Be specific**: Requirements should be testable and unambiguous
-4. **No implementation details**: Avoid mentioning languages, frameworks, or technical solutions
+4. **No implementation details**: Avoid mentioning languages, frameworks, or
+   technical solutions
 5. **User-centric**: Focus on user value and observable behavior
 6. **Complete**: Include normal flows, edge cases, and error handling
 7. **Measurable**: Success criteria must be quantifiable
@@ -116,6 +115,7 @@ How will we measure success?
 ## Example Transformation
 
 **From Structured PRD Activity**:
+
 ```
 ### Activity 1: Submit Expense Report
 
@@ -128,6 +128,7 @@ How will we measure success?
 ```
 
 **To Specification File** (`submit-expense-report.md`):
+
 ```markdown
 # Feature Specification: Submit Expense Report
 
@@ -135,17 +136,18 @@ How will we measure success?
 
 ### Story 1: Upload Receipt
 
-As an employee,
-I want to upload receipt images with my expense report,
-So that finance can verify my expenses.
+As an employee, I want to upload receipt images with my expense report, So that
+finance can verify my expenses.
 
 **Acceptance Criteria**:
+
 - [ ] Supports JPEG, PNG, PDF formats up to 10MB
 - [ ] Shows upload progress indicator
 - [ ] Validates file format before upload
 - [ ] Displays thumbnail after successful upload
 
 ### Story 2: Validate Expenses
+
 ...
 
 ## Functional Requirements
@@ -157,8 +159,10 @@ So that finance can verify my expenses.
 
 ## Edge Cases
 
-- **EC-001**: If receipt upload fails, system SHALL save form data and allow retry
-- **EC-002**: If expense exceeds policy limit, system SHALL flag for special approval
+- **EC-001**: If receipt upload fails, system SHALL save form data and allow
+  retry
+- **EC-002**: If expense exceeds policy limit, system SHALL flag for special
+  approval
 
 ## Success Criteria
 
@@ -188,10 +192,13 @@ Before outputting each specification, verify:
 
 ## Special Instructions
 
-- **Parallel Implementation**: Specs should be implementable independently where possible
+- **Parallel Implementation**: Specs should be implementable independently where
+  possible
 - **Consistent Terminology**: Use terms from Structured PRD consistently
 - **Clear Priorities**: Maintain priority from original Activities
 - **Traceability**: Reference original Activity in spec metadata
-- **Explicit Dependencies**: When one spec depends on another, reference it using kebab-case filename (e.g., `upload-receipt.md`)
+- **Explicit Dependencies**: When one spec depends on another, reference it
+  using kebab-case filename (e.g., `upload-receipt.md`)
 
-Remember: These specs will be used by architects and engineers to design and build the system. They must be complete, clear, and unambiguous.
+Remember: These specs will be used by architects and engineers to design and
+build the system. They must be complete, clear, and unambiguous.

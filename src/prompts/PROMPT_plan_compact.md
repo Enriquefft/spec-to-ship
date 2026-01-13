@@ -7,10 +7,10 @@ Generate an implementation plan from specs and architecture.
 ```markdown
 # Implementation Plan: [Project]
 
-**Created**: [Date]
-**Version**: 1.0
+**Created**: [Date] **Version**: 1.0
 
 ## Overview
+
 [Brief summary - 2-3 sentences]
 
 ## Task Summary
@@ -18,31 +18,34 @@ Generate an implementation plan from specs and architecture.
 **REQUIRED FORMAT** - Build system parses this:
 
 ### Milestone 1: [Name]
+
 - [ ] T001 [M1] Task description - depends: none - complexity: low
 - [ ] T002 [M1] Task description - depends: T001 - complexity: high [P]
 
 ### Milestone 2: [Name]
+
 - [ ] T003 [M2] Task description - depends: T002 - complexity: medium
 
 ## Detailed Tasks
 
 ### T001 - [Title]
-**Milestone**: M1
-**Dependencies**: None
-**Acceptance Criteria**:
+
+**Milestone**: M1 **Dependencies**: None **Acceptance Criteria**:
+
 - [ ] Criterion 1
-- [ ] Criterion 2
-**Files**: `path/to/files`
+- [ ] Criterion 2 **Files**: `path/to/files`
 
 [Repeat for each task]
 
 ## Quality Gates
 
 ### After M1
+
 - [ ] Tests pass
 - [ ] Coverage >70%
 
 ## Risk Mitigation
+
 [Key risks and mitigations]
 ```
 
@@ -69,21 +72,28 @@ Generate an implementation plan from specs and architecture.
 ## Format Examples
 
 **Good - Has both summary and detail with complexity:**
+
 ```markdown
 ## Task Summary
+
 - [ ] T001 [M1] Setup project structure - depends: none - complexity: low
 
 ## Detailed Tasks
+
 ### T001 - Setup project structure
-**Dependencies**: None
-**Acceptance Criteria**:
+
+**Dependencies**: None **Acceptance Criteria**:
+
 - [ ] Directory structure matches architecture
 ```
 
 **Bad - Missing summary entry:**
+
 ```markdown
 ## Detailed Tasks
+
 ### T001 - Setup project structure
+
 [No corresponding entry in Task Summary - INVALID]
 ```
 
