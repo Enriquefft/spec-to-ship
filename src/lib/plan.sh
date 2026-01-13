@@ -15,10 +15,12 @@ declare -gA PLAN_TASKS 2>/dev/null || declare -A PLAN_TASKS
 declare -gA PLAN_TASK_STATUS 2>/dev/null || declare -A PLAN_TASK_STATUS
 declare -gA PLAN_TASK_DEPS 2>/dev/null || declare -A PLAN_TASK_DEPS
 declare -gA PLAN_TASK_MILESTONE 2>/dev/null || declare -A PLAN_TASK_MILESTONE
+declare -gA PLAN_TASK_COMPLEXITY 2>/dev/null || declare -A PLAN_TASK_COMPLEXITY
 PLAN_TASKS=()
 PLAN_TASK_STATUS=()
 PLAN_TASK_DEPS=()
 PLAN_TASK_MILESTONE=()
+PLAN_TASK_COMPLEXITY=()
 
 # _find_plan_file() - Locate implementation plan file
 _find_plan_file() {
@@ -113,7 +115,15 @@ plan_load() {
                 PLAN_TASK_DEPS["$task_id"]=""
             fi
 
-            log_debug "Loaded task: $task_id [$status] $current_milestone"
+            # Parse complexity (looks for "complexity: high/medium/low" in description)
+            if [[ "$description" =~ complexity:[[:space:]]*(high|medium|low) ]]; then
+                PLAN_TASK_COMPLEXITY["$task_id"]="${BASH_REMATCH[1]}"
+            else
+                # Default to high for backward compatibility (existing behavior)
+                PLAN_TASK_COMPLEXITY["$task_id"]="high"
+            fi
+
+            log_debug "Loaded task: $task_id [$status] $current_milestone [${PLAN_TASK_COMPLEXITY[$task_id]}]"
         fi
     done < "$PLAN_FILE"
 
@@ -316,6 +326,26 @@ plan_get_task_description() {
     fi
 
     echo "${PLAN_TASKS[$task_id]}"
+    return 0
+}
+
+# plan_get_task_complexity(task_id) - Get task complexity level
+# Returns: high|medium|low (defaults to high if not specified)
+plan_get_task_complexity() {
+    local task_id="$1"
+
+    # Ensure plan is loaded
+    if [[ ${#PLAN_TASKS[@]} -eq 0 ]]; then
+        plan_load || return 1
+    fi
+
+    if [[ -z "${PLAN_TASKS[$task_id]:-}" ]]; then
+        # Task not found, return default
+        echo "high"
+        return 1
+    fi
+
+    echo "${PLAN_TASK_COMPLEXITY[$task_id]:-high}"
     return 0
 }
 

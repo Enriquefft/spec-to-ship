@@ -162,20 +162,27 @@ checklist_check_item() {
     case "$desc_lower" in
         *"test"*"pass"* | *"tests pass"*)
             # Check if tests exist and pass
-            if [[ -f "$project_root/package.json" ]]; then
-                if ! (cd "$project_root" && npm test >/dev/null 2>&1); then
-                    echo "Tests failed or not configured"
+            # Detect test command: config > run_tests.sh > package.json > Makefile
+            local test_cmd=""
+            test_cmd=$(config_get "TEST_COMMAND" 2>/dev/null || echo "")
+
+            if [[ -z "$test_cmd" ]]; then
+                if [[ -f "$project_root/tests/run_tests.sh" ]]; then
+                    test_cmd="bash tests/run_tests.sh"
+                elif [[ -f "$project_root/package.json" ]] && grep -q '"test"' "$project_root/package.json"; then
+                    test_cmd="npm test"
+                elif [[ -f "$project_root/Makefile" ]] && grep -q "^test:" "$project_root/Makefile"; then
+                    test_cmd="make test"
+                fi
+            fi
+
+            if [[ -n "$test_cmd" ]]; then
+                if ! (cd "$project_root" && eval "$test_cmd" >/dev/null 2>&1); then
+                    echo "Tests failed"
                     return 1
                 fi
-            elif [[ -d "$project_root/tests" ]]; then
-                local test_count
-                test_count=$(find "$project_root/tests" -name "*.bats" -o -name "test_*.sh" | wc -l)
-                if [[ $test_count -eq 0 ]]; then
-                    echo "No test files found"
-                    return 2
-                fi
             else
-                echo "No test directory found"
+                echo "No test command configured"
                 return 2
             fi
             return 0

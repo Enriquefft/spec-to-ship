@@ -288,18 +288,23 @@ brownfield_protect_patterns() {
 
     # 5. Testing
     ((principle_num++))
-    if [[ -d "$project_root/tests" ]]; then
-        local test_framework=""
-        if ls "$project_root/tests"/*.bats &>/dev/null; then
-            test_framework="bats"
-        elif ls "$project_root/tests"/*.py &>/dev/null; then
-            test_framework="pytest"
+    local test_cmd=""
+    test_cmd=$(config_get "TEST_COMMAND" 2>/dev/null || echo "")
+
+    if [[ -z "$test_cmd" ]]; then
+        if [[ -f "$project_root/tests/run_tests.sh" ]]; then
+            test_cmd="bash tests/run_tests.sh"
+        elif [[ -f "$project_root/package.json" ]] && grep -q '"test"' "$project_root/package.json"; then
+            test_cmd="npm test"
+        elif [[ -f "$project_root/Makefile" ]] && grep -q "^test:" "$project_root/Makefile"; then
+            test_cmd="make test"
         fi
-        constitution+="$principle_num. **Testing**: All new functionality must have tests"
-        if [[ -n "$test_framework" ]]; then
-            constitution+=" using $test_framework framework"
-        fi
-        constitution+="."$'\n\n'
+    fi
+
+    if [[ -n "$test_cmd" ]]; then
+        constitution+="$principle_num. **Testing**: All new functionality must have tests. Run with \`$test_cmd\`."$'\n\n'
+    elif [[ -d "$project_root/tests" ]]; then
+        constitution+="$principle_num. **Testing**: All new functionality must have tests."$'\n\n'
     fi
 
     constitution+="## Enforcement"$'\n\n'

@@ -78,14 +78,29 @@ _run_backpressure() {
                 log_error "Tests failed"
                 failed=true
             fi
-        elif command -v bats &> /dev/null && [[ -d "${git_root}/tests" ]]; then
-            log_info "Running BATS tests..."
-            if ! bats "${git_root}/tests/"*.bats 2>&1 | tee -a "$LOG_FILE"; then
-                log_error "BATS tests failed"
-                failed=true
-            fi
         else
-            log_warn "No test framework found, skipping tests"
+            # Detect test command: config > run_tests.sh > package.json > Makefile
+            local test_cmd=""
+            test_cmd=$(config_get "TEST_COMMAND" 2>/dev/null || echo "")
+
+            if [[ -z "$test_cmd" ]]; then
+                if [[ -f "${git_root}/package.json" ]] && grep -q '"test"' "${git_root}/package.json"; then
+                    # Works with npm, yarn, pnpm, bun, deno
+                    test_cmd="npm test"
+                elif [[ -f "${git_root}/Makefile" ]] && grep -q "^test:" "${git_root}/Makefile"; then
+                    test_cmd="make test"
+                fi
+            fi
+
+            if [[ -n "$test_cmd" ]]; then
+                log_info "Running tests: $test_cmd"
+                if ! (cd "${git_root}" && eval "$test_cmd") 2>&1 | tee -a "$LOG_FILE"; then
+                    log_error "Tests failed"
+                    failed=true
+                fi
+            else
+                log_debug "No test command configured, skipping tests"
+            fi
         fi
     fi
 

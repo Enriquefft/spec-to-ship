@@ -49,31 +49,70 @@ constitution_load() {
     log_debug "Loading constitution from: $CONSTITUTION_FILE"
 
     # Parse principles from constitution file
-    # Format: ## Principles section with numbered items
+    # Supports multiple formats:
+    # 1. Numbered list: "1. **Name**: Description"
+    # 2. Heading format: "### 1. Name" with description below
     local in_principles=false
     local principle_num=0
+    local pending_heading=""
+    local pending_desc=""
 
     while IFS= read -r line; do
-        # Detect principles section
-        if [[ "$line" =~ ^##[[:space:]]+Principles ]]; then
+        # Detect principles section (flexible matching: "Principles", "Core Principles", etc.)
+        if [[ "$line" =~ ^##[[:space:]]+.*Principles ]]; then
             in_principles=true
             continue
         fi
 
-        # Exit principles section on next ## heading
-        if [[ "$in_principles" == "true" && "$line" =~ ^##[[:space:]] ]]; then
+        # Exit principles section on next ## heading (but not ### subheadings)
+        if [[ "$in_principles" == "true" && "$line" =~ ^##[[:space:]][^#] ]]; then
             break
         fi
 
-        # Parse numbered principles (e.g., "1. **Name**: Description")
-        if [[ "$in_principles" == "true" && "$line" =~ ^[0-9]+\.[[:space:]]\*\*(.+)\*\*:[[:space:]]*(.+) ]]; then
-            ((principle_num++))
-            local name="${BASH_REMATCH[1]}"
-            local desc="${BASH_REMATCH[2]}"
-            CONSTITUTION_PRINCIPLES["P${principle_num}"]="$name: $desc"
-            log_debug "Loaded principle P${principle_num}: $name"
+        if [[ "$in_principles" == "true" ]]; then
+            # Format 1: Numbered list (1. **Name**: Description)
+            if [[ "$line" =~ ^[0-9]+\.[[:space:]]\*\*(.+)\*\*:[[:space:]]*(.+) ]]; then
+                principle_num=$((principle_num + 1))
+                local name="${BASH_REMATCH[1]}"
+                local desc="${BASH_REMATCH[2]}"
+                CONSTITUTION_PRINCIPLES["P${principle_num}"]="$name: $desc"
+                log_debug "Loaded principle P${principle_num}: $name (list format)"
+                continue
+            fi
+
+            # Format 2: Heading format (### 1. Name or ### Name)
+            if [[ "$line" =~ ^###[[:space:]]+([0-9]+\.[[:space:]])?(.+) ]]; then
+                # Save previous principle if exists
+                if [[ -n "$pending_heading" && -n "$pending_desc" ]]; then
+                    principle_num=$((principle_num + 1))
+                    CONSTITUTION_PRINCIPLES["P${principle_num}"]="$pending_heading: $pending_desc"
+                    log_debug "Loaded principle P${principle_num}: $pending_heading (heading format)"
+                fi
+                # Start new principle
+                pending_heading="${BASH_REMATCH[2]}"
+                pending_desc=""
+                continue
+            fi
+
+            # Accumulate description for heading format
+            if [[ -n "$pending_heading" && -n "$line" && ! "$line" =~ ^[[:space:]]*$ ]]; then
+                # Extract Rule section specifically for structured principles
+                if [[ "$line" =~ ^\*\*Rule\*\*:[[:space:]]*(.+) ]]; then
+                    pending_desc="${BASH_REMATCH[1]}"
+                # Fallback: capture first non-empty, non-section-marker line
+                elif [[ -z "$pending_desc" && ! "$line" =~ ^\*\*[A-Z][a-z]+\*\*: && ! "$line" =~ ^- ]]; then
+                    pending_desc="$line"
+                fi
+            fi
         fi
     done < "$CONSTITUTION_FILE"
+
+    # Save last pending principle
+    if [[ -n "$pending_heading" && -n "$pending_desc" ]]; then
+        principle_num=$((principle_num + 1))
+        CONSTITUTION_PRINCIPLES["P${principle_num}"]="$pending_heading: $pending_desc"
+        log_debug "Loaded principle P${principle_num}: $pending_heading (heading format)"
+    fi
 
     log_debug "Loaded ${#CONSTITUTION_PRINCIPLES[@]} principles"
     return 0
