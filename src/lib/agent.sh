@@ -41,11 +41,14 @@ agent_run_task() {
 
     # 1. Setup Workspace
     AGENT_HISTORY_FILE="$(mktemp)"
+    # Store task_id in global for cleanup trap (local vars not accessible in trap context)
+    _AGENT_CURRENT_TASK_ID="$task_id"
 
     # Cleanup function for trap
     _agent_cleanup() {
-        adaptive_cleanup_task "$task_id" 2>/dev/null || true
+        adaptive_cleanup_task "${_AGENT_CURRENT_TASK_ID:-}" 2>/dev/null || true
         rm -f "$AGENT_HISTORY_FILE" 2>/dev/null || true
+        unset _AGENT_CURRENT_TASK_ID
     }
     trap '_agent_cleanup' EXIT
 
@@ -92,6 +95,12 @@ agent_run_task() {
     local prev_response=""
 
     while [[ $step -lt $AGENT_MAX_STEPS && "$done" == "false" ]]; do
+        # Check for build interruption (Ctrl+C)
+        if [[ "${BUILD_INTERRUPTED:-false}" == "true" ]]; then
+            log_warn "Agent loop interrupted by user"
+            return 130
+        fi
+
         ((step++))
 
         # A. History Compression (for token efficiency)
@@ -121,7 +130,13 @@ agent_run_task() {
             response=$(provider_invoke_for_phase "build" "$AGENT_HISTORY_FILE") || invoke_status=$?
         fi
 
-        # D. Handle invocation failures with escalation
+        # D. Handle interrupt signal (Ctrl+C)
+        if [[ $invoke_status -eq 130 ]]; then
+            log_warn "Provider interrupted by signal (exit code 130)"
+            return 130
+        fi
+
+        # E. Handle invocation failures with escalation
         if [[ $invoke_status -ne 0 ]] || [[ -z "$response" ]]; then
             log_warn "Agent step $step failed (capability: $step_capability)"
 
@@ -151,7 +166,7 @@ agent_run_task() {
             fi
         fi
 
-        # E. Record success for adaptive tracking
+        # F. Record success for adaptive tracking
         if adaptive_is_enabled && [[ -n "$response" ]]; then
             adaptive_record_success "$task_id"
         fi
@@ -167,7 +182,7 @@ agent_run_task() {
         echo "## Assistant (Step $step)" >> "$AGENT_HISTORY_FILE"
         echo "$response" >> "$AGENT_HISTORY_FILE"
 
-        # F. Parse and Execute
+        # G. Parse and Execute
         # We look for ONE action per turn (Tool or Ask or Finish)
 
         # Check for <final_answer>
@@ -267,16 +282,19 @@ _agent_handle_question() {
 
 _agent_record_result() {
     local header="$1"
-    local content="$2"
+    local content="${2:-}"
 
-    echo "" >> "$AGENT_HISTORY_FILE"
-    echo "## User/System" >> "$AGENT_HISTORY_FILE"
-    echo "$header" >> "$AGENT_HISTORY_FILE"
-    if [[ -n "$content" ]]; then
-        echo "
-```" >> "$AGENT_HISTORY_FILE"
-        echo "$content" >> "$AGENT_HISTORY_FILE"
-        echo "
-```" >> "$AGENT_HISTORY_FILE"
+    # Only write to history file if it's defined and exists
+    if [[ -n "$AGENT_HISTORY_FILE" && -w "$AGENT_HISTORY_FILE" ]]; then
+        echo "" >> "$AGENT_HISTORY_FILE"
+        echo "## User/System" >> "$AGENT_HISTORY_FILE"
+        echo "$header" >> "$AGENT_HISTORY_FILE"
+        if [[ -n "$content" ]]; then
+            echo "
+\`\`\`" >> "$AGENT_HISTORY_FILE"
+            echo "$content" >> "$AGENT_HISTORY_FILE"
+            echo "
+\`\`\`" >> "$AGENT_HISTORY_FILE"
+        fi
     fi
 }
