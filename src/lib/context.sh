@@ -19,9 +19,9 @@ context_summarize_prd() {
     local prd_file="$1"
     local cache_key="prd_summary_$(md5sum "$prd_file" 2>/dev/null | cut -d' ' -f1 || echo "$prd_file")"
 
-    # Check cache first
+    # Check cache first (3600s = 1 hour for stable PRD context)
     if cache_is_valid "$cache_key"; then
-        if cached=$(cache_get "$cache_key" 600); then
+        if cached=$(cache_get "$cache_key" 3600); then
             echo "$cached"
             return 0
         fi
@@ -61,8 +61,8 @@ context_extract_activity() {
     local activity_name="$2"
     local cache_key="activity_${activity_name//[^a-zA-Z0-9]/_}"
 
-    # Check cache
-    if cached=$(cache_get "$cache_key" 600 2>/dev/null); then
+    # Check cache (3600s = 1 hour for stable activity context)
+    if cached=$(cache_get "$cache_key" 3600 2>/dev/null); then
         echo "$cached"
         return 0
     fi
@@ -98,8 +98,8 @@ context_summarize_specs() {
     local cache_key="specs_summary"
     local summary=""
 
-    # Check cache
-    if cached=$(cache_get "$cache_key" 600 2>/dev/null); then
+    # Check cache (3600s = 1 hour for stable spec summaries)
+    if cached=$(cache_get "$cache_key" 3600 2>/dev/null); then
         echo "$cached"
         return 0
     fi
@@ -136,7 +136,8 @@ context_get_spec_list() {
     local spec_dir="$1"
     local cache_key="spec_list"
 
-    if cached=$(cache_get "$cache_key" 600 2>/dev/null); then
+    # Check cache (3600s = 1 hour for stable spec list)
+    if cached=$(cache_get "$cache_key" 3600 2>/dev/null); then
         echo "$cached"
         return 0
     fi
@@ -167,7 +168,8 @@ context_get_arch_section() {
     local section_name="$2"
     local cache_key="arch_section_${section_name}"
 
-    if cached=$(cache_get "$cache_key" 600 2>/dev/null); then
+    # Check cache (3600s = 1 hour for stable architecture sections)
+    if cached=$(cache_get "$cache_key" 3600 2>/dev/null); then
         echo "$cached"
         return 0
     fi
@@ -207,7 +209,8 @@ context_summarize_arch() {
     local arch_file="$1"
     local cache_key="arch_summary"
 
-    if cached=$(cache_get "$cache_key" 600 2>/dev/null); then
+    # Check cache (3600s = 1 hour for stable architecture summary)
+    if cached=$(cache_get "$cache_key" 3600 2>/dev/null); then
         echo "$cached"
         return 0
     fi
@@ -238,8 +241,9 @@ context_compress_plan() {
     local current_task_id="${2:-}"
     local cache_key="plan_context_${current_task_id:-all}"
 
+    # Check cache (1800s = 30 min for task context - may change during build)
     if [[ -n "$current_task_id" ]]; then
-        if cached=$(cache_get "$cache_key" 300 2>/dev/null); then
+        if cached=$(cache_get "$cache_key" 1800 2>/dev/null); then
             echo "$cached"
             return 0
         fi

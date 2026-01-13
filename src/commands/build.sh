@@ -20,6 +20,16 @@ source "$LIB_DIR/context.sh"
 source "$LIB_DIR/plan.sh"
 # shellcheck source=src/lib/agent.sh
 source "$LIB_DIR/agent.sh"
+# shellcheck source=src/lib/constitution.sh
+source "$LIB_DIR/constitution.sh"
+# shellcheck source=src/lib/checklist.sh
+source "$LIB_DIR/checklist.sh"
+# shellcheck source=src/lib/state.sh
+source "$LIB_DIR/state.sh"
+# shellcheck source=src/lib/versioning.sh
+source "$LIB_DIR/versioning.sh"
+# shellcheck source=src/lib/audit.sh
+source "$LIB_DIR/audit.sh"
 
 # Global flag for signal handling
 BUILD_INTERRUPTED=false
@@ -32,6 +42,7 @@ cmd_build() {
     local no_hitl=false
     local hitl_timeout=""
     local no_git=false
+    local force=false
 
     # Parse options
     while [[ $# -gt 0 ]]; do
@@ -66,7 +77,11 @@ cmd_build() {
             --no-git)
                 no_git=true
                 shift
-                ;; 
+                ;;
+            --force)
+                force=true
+                shift
+                ;;
             --hitl-timeout)
                 if [[ -z "${2:-}" ]]; then
                     die "Option --hitl-timeout requires an argument"
@@ -138,14 +153,76 @@ cmd_build() {
         fi
     fi
 
+    # Initialize state, versioning, and audit systems
+    state_init "$project_root"
+    versioning_init "$project_root"
+    audit_init "$project_root"
+
+    # Check for interrupted build and offer to resume
+    local resume_from_task="" resume_from_iteration=0
+    if build_state_is_interrupted; then
+        if build_state_prompt_resume; then
+            resume_from_task=$(build_state_get_resume_task)
+            resume_from_iteration=$(build_state_get_resume_iteration)
+            log_info "Resuming from task: $resume_from_task (iteration $resume_from_iteration)"
+            audit_build_resumed "$resume_from_task" "$resume_from_iteration"
+        else
+            log_info "Starting fresh build (previous state cleared)"
+            state_clear
+        fi
+    fi
+
     # Load implementation plan
     log_info "Loading implementation plan..."
     if ! plan_load; then
         die "Failed to load implementation plan. Run 'workflow plan' first."
     fi
 
+    # Snapshot plan before build (for versioning)
+    local plan_file="$project_root/docs/IMPLEMENTATION_PLAN.md"
+    if [[ -f "$plan_file" ]]; then
+        versioning_auto_snapshot "$plan_file" "pre-build"
+    fi
+
+    # Quality Gate: Constitution validation (blocks by default)
+    log_info "Validating against constitution..."
+    if ! constitution_validate "$project_root"; then
+        audit_gate_check "constitution" "failed" "Constitution principles violated"
+        if [[ "$force" != "true" ]]; then
+            die "Constitution validation failed. Use --force to override."
+        fi
+        audit_gate_override "constitution" "force flag specified"
+        log_warn "Proceeding despite constitution violations (--force specified)"
+    else
+        audit_gate_check "constitution" "passed"
+    fi
+
+    # Quality Gate: Checklist validation (blocks by default)
+    local spec_dir="$project_root/specs"
+    if [[ -d "$spec_dir" ]]; then
+        # Find feature spec directory (most recent or specified)
+        local latest_spec_dir
+        latest_spec_dir=$(find "$spec_dir" -mindepth 1 -maxdepth 1 -type d | sort -r | head -1)
+        if [[ -n "$latest_spec_dir" ]]; then
+            log_info "Validating against checklist..."
+            if ! checklist_validate "$latest_spec_dir" "$project_root"; then
+                audit_gate_check "checklist" "failed" "Checklist items not satisfied"
+                if [[ "$force" != "true" ]]; then
+                    die "Checklist validation failed. Use --force to override."
+                fi
+                audit_gate_override "checklist" "force flag specified"
+                log_warn "Proceeding despite checklist failures (--force specified)"
+            else
+                audit_gate_check "checklist" "passed"
+            fi
+        fi
+    fi
+
     # Setup signal handler for Ctrl+C
     trap '_build_signal_handler' SIGINT SIGTERM
+
+    # Log build start to audit
+    audit_build_start "$plan_file" "milestone=$milestone hitl=$hitl_mode max=$max_iterations"
 
     log_info "Starting autonomous build loop..."
     if [[ -n "$milestone" ]]; then
@@ -156,16 +233,21 @@ cmd_build() {
     echo ""
 
     # Main build loop
-    local iteration=0
+    local iteration="${resume_from_iteration:-0}"
     local exit_code=0
     local tasks_executed=0
     local current_milestone=""
     local prev_milestone=""
+    local build_start_time
+    build_start_time=$(date +%s)
 
     while [[ $iteration -lt $max_iterations ]]; do
         # Check for interruption
         if [[ "$BUILD_INTERRUPTED" == "true" ]]; then
             log_warn "Build interrupted by user"
+            # Save state for resume
+            build_state_save "${task_id:-unknown}" "$iteration" "$current_milestone" "interrupted"
+            audit_build_interrupted "${task_id:-unknown}" "$iteration"
             exit_code=130
             break
         fi
@@ -189,10 +271,18 @@ cmd_build() {
                     _build_hitl_milestone_check "$prev_milestone" "$hitl_mode"
                 fi
             fi
+            # Mark build as complete
+            build_state_mark_complete
+            local build_duration=$(($(date +%s) - build_start_time))
+            audit_build_complete "$tasks_executed" "$build_duration"
             break
         fi
 
+        # Save current state (for resume capability)
+        build_state_save "$task_id" "$iteration" "$current_milestone" "running"
+
         log_info "[$iteration/$max_iterations] Executing task: $task_id"
+        audit_task_start "$task_id" "${PLAN_TASK_DESC[$task_id]:-}"
         echo ""
 
         # Detect milestone change
@@ -211,11 +301,21 @@ cmd_build() {
         fi
 
         # Execute single task iteration
+        local task_start_time
+        task_start_time=$(date +%s)
         if ! _build_execute_task "$project_root" "$task_id" "$hitl_mode" "$use_git"; then
             log_error "Task execution failed: $task_id"
+            audit_task_failed "$task_id" "execution failed"
+            build_state_mark_failed "task $task_id failed"
+            local build_duration=$(($(date +%s) - build_start_time))
+            audit_build_failed "task execution failed" "$task_id"
             exit_code=1
             break
         fi
+
+        # Log task completion
+        local task_duration=$(($(date +%s) - task_start_time))
+        audit_task_complete "$task_id" "$task_duration"
 
         ((tasks_executed++)) || true
         prev_milestone="$current_milestone"
@@ -255,6 +355,18 @@ cmd_build() {
         echo ""
         log_info "${COLOR_GREEN}✓${COLOR_RESET} Build loop completed successfully"
         log_info "Iterations: $iteration, Tasks executed: $tasks_executed"
+
+        # Snapshot plan after successful build
+        if [[ -f "$plan_file" ]]; then
+            versioning_auto_snapshot "$plan_file" "post-build"
+        fi
+    fi
+
+    # Log final audit session location
+    local audit_file
+    audit_file=$(audit_get_session_log)
+    if [[ -n "$audit_file" ]] && [[ -f "$audit_file" ]]; then
+        log_debug "Audit log: $audit_file"
     fi
 
     return $exit_code
@@ -270,12 +382,18 @@ DESCRIPTION:
     Execute autonomous build loop implementing tasks from the plan.
 
     Iteratively executes tasks one at a time:
-    1. Select highest-priority pending task
-    2. Invoke Agent to implement task (reading/writing files)
-    3. Run backpressure validation (tests, lint, typecheck)
-    4. Commit changes if validation passes
-    5. Update task status in plan
-    6. Continue to next task
+    1. Validate quality gates (constitution, checklist)
+    2. Select highest-priority pending task
+    3. Invoke Agent to implement task (reading/writing files)
+    4. Run backpressure validation (tests, lint, typecheck)
+    5. Commit changes if validation passes
+    6. Update task status in plan
+    7. Continue to next task
+
+    Features:
+    - Resume capability: interrupted builds can be resumed
+    - Plan versioning: snapshots before/after builds
+    - Audit trails: all decisions and events logged
 
 OPTIONS:
     --max N                  Maximum iterations (default: 1000)
@@ -288,6 +406,7 @@ OPTIONS:
                               - disabled: no pauses
     --no-hitl                Disable human-in-the-loop (same as --hitl disabled)
     --no-git                 Run without git integration (no commits)
+    --force                  Override quality gate failures (constitution/checklist)
     --hitl-timeout SECONDS   Timeout for HITL prompts
     --help                   Show this help message
 
@@ -329,6 +448,7 @@ _build_signal_handler() {
     BUILD_INTERRUPTED=true
     echo ""
     log_warn "Received interrupt signal, finishing current task..."
+    # State is saved in the main loop on interruption
 }
 
 # _build_execute_task - Execute a single task

@@ -68,6 +68,10 @@ CONFIG_DEFAULTS=(
     # Retry Settings
     [RETRY_MAX_ATTEMPTS]="3"
     [RETRY_BASE_DELAY]="2"
+
+    # Token Optimization
+    [PROMPT_COMPACT]="true"
+    [CONTEXT_CACHE_TTL]="3600"
 )
 
 # Current configuration (populated by config_load)

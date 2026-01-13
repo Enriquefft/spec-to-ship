@@ -66,7 +66,9 @@ SUBCOMMANDS:
     status      Show current workflow state
     diff        Show changes since last milestone
     config      Manage configuration
-    provider     Manage AI providers
+    provider    Manage AI providers
+    explore     Analyze existing codebase
+    ci          CI/CD integration commands
 
 GLOBAL OPTIONS:
     -h, --help      Show help for command
@@ -239,6 +241,16 @@ main() {
             # shellcheck source=src/commands/provider.sh
             source "${COMMANDS_DIR}/provider.sh"
             cmd_provider "$@"
+            ;;
+        explore)
+            # shellcheck source=src/commands/explore.sh
+            source "${COMMANDS_DIR}/explore.sh"
+            cmd_explore "$@"
+            ;;
+        ci)
+            # shellcheck source=src/commands/ci.sh
+            source "${COMMANDS_DIR}/ci.sh"
+            cmd_ci "$@"
             ;;
         -h|--help)
             show_help
