@@ -457,11 +457,22 @@ interaction_present_smart_question() {
     echo "You can reply with the option letter (e.g., \"A\"), accept the recommendation" >&2
     echo "by saying \"yes\" or \"recommended\", or provide your own short answer." >&2
     echo "" >&2
-    echo -n "Your choice: " >&2
+
+    # Show default hint if recommendation exists
+    local prompt_text="Your choice"
+    if [[ -n "$rec_id" ]]; then
+        prompt_text="Your choice (default: $rec_id)"
+    fi
+    echo -n "$prompt_text: " >&2
 
     # Capture Input
     local user_input
     read -r user_input
+
+    # If user just pressed Enter and we have a recommendation, use it as default
+    if [[ -z "$user_input" && -n "$rec_id" ]]; then
+        user_input="$rec_id"
+    fi
 
     # Process Input (Map aliases to recommendation)
     local final_answer

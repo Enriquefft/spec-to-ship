@@ -278,6 +278,7 @@ adaptive_compress_history() {
         /^## Assistant \(Step/ {
             step++
             in_assistant=1
+            step_captured[step] = 0
             if (step < keep) {
                 # Summarize this step
                 print "- Step " step ":"
@@ -295,9 +296,21 @@ adaptive_compress_history() {
             if (in_tool && /agent_tool_/) {
                 gsub(/^[[:space:]]+/, "")
                 print "  - " $0
+                step_captured[step] = 1
             }
-            if (/<final_answer>/) { print "  - Provided final answer" }
-            if (/<ask_user>/) { print "  - Asked user question" }
+            if (/<final_answer>/) { print "  - Provided final answer"; step_captured[step] = 1 }
+            if (/<ask_user>/) { print "  - Asked user question"; step_captured[step] = 1 }
+            # Capture first non-empty reasoning line as fallback context
+            if (!step_captured[step] && !in_tool && /[A-Za-z]/) {
+                gsub(/^[[:space:]]+/, "")
+                # Truncate to 100 chars for brevity
+                if (length($0) > 100) {
+                    print "  - " substr($0, 1, 100) "..."
+                } else {
+                    print "  - " $0
+                }
+                step_captured[step] = 1
+            }
         }
         step >= keep {
             # Keep recent steps verbatim

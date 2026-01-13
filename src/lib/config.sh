@@ -31,6 +31,11 @@ CONFIG_DEFAULTS=(
     # Additional model options (not used by default, available for override)
     [PROVIDER_OPENCODE_MODEL_EXTRA]="opencode/minimax-m2.1-free"
     
+    # Copilot provider model mappings
+    [PROVIDER_COPILOT_MODEL_HIGH]="Claude Opus 4.5"
+    [PROVIDER_COPILOT_MODEL_MEDIUM]="Claude Sonnet 4.5"
+    [PROVIDER_COPILOT_MODEL_LOW]="Claude Haiku 4.5"
+    
     # Gemini provider model mappings
     [PROVIDER_GEMINI_MODEL_HIGH]="gemini-3-pro-preview"
     [PROVIDER_GEMINI_MODEL_MEDIUM]="gemini-2.5-flash"
@@ -98,12 +103,15 @@ if [[ ! -v VALID_MODELS ]]; then
         "opus" "sonnet" "haiku"  # Legacy model names
         "claude-opus-4-20250514" "claude-sonnet-4-5-20250929" "claude-haiku-4-20250319"  # Claude models
         "opencode/grok-code" "opencode/gpt-5-nano" "opencode/glm-4.7-free"  # OpenCode models
+        "Claude Opus 4.5" "Claude Sonnet 4.5" "Claude Haiku 4.5" "Claude Sonnet 4"  # Copilot models
+        "GPT-5.1-Codex-Max" "GPT-5.1-Codex" "GPT-5.2" "GPT-5.1" "GPT-5" "GPT-5.1-Codex-Mini" "GPT-5 mini" "GPT-4.1"  # Copilot GPT family
+        "Gemini 3 Pro (Preview)"  # Copilot Gemini option
     )
 fi
 
 # Valid provider names (only set once)
 if [[ ! -v VALID_PROVIDERS ]]; then
-    readonly VALID_PROVIDERS=("claude" "opencode" "openai")
+    readonly VALID_PROVIDERS=("claude" "opencode" "openai" "gemini" "copilot")
 fi
 
 # Valid capability levels (only set once)
