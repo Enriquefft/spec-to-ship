@@ -25,6 +25,7 @@ setup() {
     PLAN_TASK_STATUS=()
     PLAN_TASK_DEPS=()
     PLAN_TASK_MILESTONE=()
+    PLAN_TASK_COMPLEXITY=()
 }
 
 teardown() {
@@ -551,4 +552,109 @@ EOF
     [ "$status" -eq 0 ]
     [[ ! "$output" =~ T001 ]]
     [[ "$output" =~ T002 ]]
+}
+
+# =============================================================================
+# plan_get_task_complexity() tests
+# =============================================================================
+
+@test "plan_load parses complexity field" {
+    mkdir -p docs
+    cat > docs/IMPLEMENTATION_PLAN.md <<'EOF'
+# Implementation Plan
+
+## Milestone 1: Setup
+
+- [ ] T001 Simple task - depends: [] - complexity: low
+- [ ] T002 Complex task - depends: T001 - complexity: high
+- [ ] T003 Medium task - depends: [] - complexity: medium
+EOF
+
+    plan_load
+
+    [ "${PLAN_TASK_COMPLEXITY[T001]}" = "low" ]
+    [ "${PLAN_TASK_COMPLEXITY[T002]}" = "high" ]
+    [ "${PLAN_TASK_COMPLEXITY[T003]}" = "medium" ]
+}
+
+@test "plan_load defaults complexity to high if not specified" {
+    mkdir -p docs
+    cat > docs/IMPLEMENTATION_PLAN.md <<'EOF'
+# Implementation Plan
+
+## Milestone 1: Setup
+
+- [ ] T001 Task without complexity - depends: []
+EOF
+
+    plan_load
+
+    [ "${PLAN_TASK_COMPLEXITY[T001]}" = "high" ]
+}
+
+@test "plan_get_task_complexity returns correct complexity" {
+    mkdir -p docs
+    cat > docs/IMPLEMENTATION_PLAN.md <<'EOF'
+# Implementation Plan
+
+## Milestone 1: Setup
+
+- [ ] T001 Task - depends: [] - complexity: medium
+EOF
+
+    plan_load
+
+    run plan_get_task_complexity T001
+    [ "$status" -eq 0 ]
+    [ "$output" = "medium" ]
+}
+
+@test "plan_get_task_complexity returns high for missing complexity" {
+    mkdir -p docs
+    cat > docs/IMPLEMENTATION_PLAN.md <<'EOF'
+# Implementation Plan
+
+## Milestone 1: Setup
+
+- [ ] T001 Task - depends: []
+EOF
+
+    plan_load
+
+    run plan_get_task_complexity T001
+    [ "$status" -eq 0 ]
+    [ "$output" = "high" ]
+}
+
+@test "plan_get_task_complexity returns high for unknown task" {
+    mkdir -p docs
+    echo "# Empty" > docs/IMPLEMENTATION_PLAN.md
+
+    plan_load
+
+    run plan_get_task_complexity T999
+    [ "$status" -eq 1 ]
+    # Extract last line (actual output) - log messages may appear before it
+    local actual_output
+    actual_output=$(echo "$output" | tail -1)
+    [ "$actual_output" = "high" ]  # Default fallback
+}
+
+@test "plan_load parses complexity with various formats" {
+    mkdir -p docs
+    cat > docs/IMPLEMENTATION_PLAN.md <<'EOF'
+# Implementation Plan
+
+## Milestone 1: Setup
+
+- [ ] T001 Task - depends: [] - complexity: low
+- [ ] T002 Task - complexity: medium - depends: T001
+- [ ] T003 Task - depends: []- complexity:high
+EOF
+
+    plan_load
+
+    [ "${PLAN_TASK_COMPLEXITY[T001]}" = "low" ]
+    [ "${PLAN_TASK_COMPLEXITY[T002]}" = "medium" ]
+    [ "${PLAN_TASK_COMPLEXITY[T003]}" = "high" ]
 }
