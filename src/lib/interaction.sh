@@ -199,12 +199,22 @@ interaction_render_table() {
     echo "| Option | Description |" >&2
     echo "|--------|-------------|" >&2
 
-    # Render each option row
+    # Deduplicate options by ID (keep last occurrence of each unique ID)
+    local seen_ids=()
+    local -A final_options
+
+    # Parse options and keep track of last occurrence
     while IFS='|' read -r id desc; do
-        if [[ -n "$id" ]]; then
-            printf "| %s | %s |\n" "$id" "$desc" >&2
+        if [[ -n "$id" && -n "$desc" ]]; then
+            # Store or update the option for this ID
+            final_options["$id"]="$desc"
         fi
     done <<< "$options_list"
+
+    # Render each unique option in sorted order
+    for id in $(printf '%s\n' "${!final_options[@]}" | sort); do
+        printf "| %s | %s |\n" "$id" "${final_options[$id]}" >&2
+    done
 
     # Add Short option if requested
     if [[ "$include_short" == "true" ]]; then
@@ -433,6 +443,13 @@ interaction_present_smart_question() {
 
     _interaction_ensure_init
 
+    # Clean up question text - remove duplicates and keep only the last line
+    # This handles cases where AI generates iterative refinements
+    question=$(echo "$question" | grep -v '^[[:space:]]*$' | tail -1)
+
+    # Clean up recommendation - keep only last occurrence
+    rec_reasoning=$(echo "$rec_reasoning" | grep -v '^[[:space:]]*$' | tail -1)
+
     # Header
     echo "" >&2
     echo -e "${COLOR_YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${COLOR_RESET}" >&2
@@ -441,7 +458,7 @@ interaction_present_smart_question() {
     echo "" >&2
 
     # The Question
-    echo -e "${COLOR_BOLD}$question${COLOR_RESET}" >&2
+    echo "$question" >&2
     echo "" >&2
 
     # Recommendation (Prominent at top)
