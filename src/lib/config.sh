@@ -68,6 +68,10 @@ CONFIG_DEFAULTS=(
     [BUILD_BACKPRESSURE_TYPECHECK]="false"
     [BUILD_BACKPRESSURE_LINT]="true"
 
+    # Test command (auto-detected if empty)
+    # Examples: "npm test", "make test", "pytest", "cargo test", "deno test"
+    [TEST_COMMAND]=""
+
     # Retry Settings
     [RETRY_MAX_ATTEMPTS]="3"
     [RETRY_BASE_DELAY]="2"
@@ -75,6 +79,13 @@ CONFIG_DEFAULTS=(
     # Token Optimization
     [PROMPT_COMPACT]="true"
     [CONTEXT_CACHE_TTL]="3600"
+
+    # Adaptive Model Selection
+    [ADAPTIVE_ENABLED]="true"
+    [ADAPTIVE_RETRY_BEFORE_ESCALATE]="2"
+    [ADAPTIVE_TOOL_STEP_DOWNGRADE]="true"
+    [ADAPTIVE_HISTORY_COMPRESS_THRESHOLD]="10"
+    [ADAPTIVE_DEFAULT_COMPLEXITY]="high"
 )
 
 # Current configuration (populated by config_load)

@@ -9,6 +9,8 @@ source "${LIB_DIR}/common.sh"
 source "${LIB_DIR}/config.sh"
 # shellcheck source=src/lib/spinner.sh
 source "${LIB_DIR}/spinner.sh"
+# shellcheck source=src/lib/activity.sh
+source "${LIB_DIR}/activity.sh"
 
 # Load configuration
 config_load
@@ -188,6 +190,8 @@ provider_invoke() {
     local temp_output
     temp_output="$(mktemp)"
     local exit_code=0
+    local start_time
+    start_time="$(date +%s)"
 
     # Setup cleanup trap for Ctrl+C
     local _cleanup_done=""
@@ -195,6 +199,7 @@ provider_invoke() {
         [[ -n "$_cleanup_done" ]] && return
         _cleanup_done=1
         spinner_stop
+        activity_status_clear
         rm -f "$temp_output" 2>/dev/null
         echo "" >&2
         log_warn "Interrupted"
@@ -202,7 +207,15 @@ provider_invoke() {
     trap '_provider_cleanup; exit 130' INT
     trap '_provider_cleanup; exit 143' TERM
 
-    # Start spinner during the blocking call
+    # Log LLM activity start
+    activity_llm_start "$provider" "$model" "${PROVIDER_CURRENT_PHASE:-}"
+
+    # Log prompt content at trace level
+    if [[ -f "$prompt_file" ]]; then
+        activity_llm_prompt "$(cat "$prompt_file")"
+    fi
+
+    # Start spinner during the blocking call (visual feedback)
     spinner_start "Thinking"
 
     # Run provider - runs in foreground, Ctrl+C goes directly to it
@@ -218,6 +231,20 @@ provider_invoke() {
 
     # Stop spinner after completion
     spinner_stop
+
+    # Calculate duration and log completion
+    local end_time duration
+    end_time="$(date +%s)"
+    duration=$((end_time - start_time))
+
+    # Log response at trace level
+    if [[ -f "$temp_output" ]]; then
+        activity_llm_response "$(cat "$temp_output")"
+    fi
+
+    # Log completion
+    activity_llm_complete "$duration" "unknown"
+    activity_info "[$provider] completed in ${duration}s"
 
     # Output the captured result
     cat "$temp_output"
@@ -345,6 +372,9 @@ provider_get_fallback_chain() {
     echo "${chain[@]}"
 }
 
+# Track current phase for activity logging
+PROVIDER_CURRENT_PHASE=""
+
 # High-level convenience function for phase invocation with fallback support
 provider_invoke_for_phase() {
     local phase="$1"
@@ -354,6 +384,13 @@ provider_invoke_for_phase() {
 
     local provider model capability
     local -a fallback_chain
+
+    # Track current phase for activity logging
+    PROVIDER_CURRENT_PHASE="$phase"
+    export PROVIDER_CURRENT_PHASE
+
+    # Start activity section for this phase
+    activity_section_start "phase_${phase}" "Phase: $phase"
 
     # Get provider for phase
     provider="$(provider_get_for_phase "$phase")"
@@ -374,8 +411,10 @@ provider_invoke_for_phase() {
         # Announce provider (transparency)
         if [[ $attempt -eq 1 ]]; then
             provider_announce "$phase"
+            activity_section_add_detail "phase_${phase}" "Provider: $provider ($capability)"
         else
             log_warn "Trying fallback provider: ${COLOR_CYAN}${try_provider}${COLOR_RESET} (attempt $attempt/$max_attempts)"
+            activity_section_add_detail "phase_${phase}" "Fallback to: $try_provider (attempt $attempt)"
         fi
 
         # Resolve model
@@ -383,6 +422,8 @@ provider_invoke_for_phase() {
             log_debug "No model configured for $try_provider with capability $capability"
             continue
         fi
+
+        activity_section_add_detail "phase_${phase}" "Model: $model"
 
         # Validate provider
         if ! provider_validate "$try_provider" 2>/dev/null; then
@@ -394,10 +435,13 @@ provider_invoke_for_phase() {
         local result
         if result=$(provider_invoke "$try_provider" "$model" "$prompt_file" "${extra_args[@]}"); then
             echo "$result"
+            activity_section_end "phase_${phase}" "success"
+            PROVIDER_CURRENT_PHASE=""
             return 0
         else
             local exit_code=$?
             log_warn "Provider $try_provider failed with exit code $exit_code"
+            activity_section_add_detail "phase_${phase}" "Error: exit code $exit_code"
 
             # Check if this is a rate limit or transient error
             if [[ "$result" == *"rate limit"* ]] || [[ "$result" == *"429"* ]] || [[ "$result" == *"503"* ]]; then
@@ -410,8 +454,44 @@ provider_invoke_for_phase() {
         fi
     done
 
+    activity_section_end "phase_${phase}" "failed"
+    PROVIDER_CURRENT_PHASE=""
     log_error "All providers in fallback chain failed"
     return 1
+}
+
+# Direct capability invocation (bypasses phase resolution)
+# Used by adaptive model selection for per-step capability control
+provider_invoke_with_capability() {
+    local capability="$1"
+    local prompt_file="$2"
+    shift 2
+    local extra_args=("$@")
+
+    local provider model
+
+    # Validate capability
+    case "$capability" in
+        high|medium|low) ;;
+        *)
+            log_error "Invalid capability: $capability (expected high|medium|low)"
+            return 1
+            ;;
+    esac
+
+    # Get default provider (same as build phase)
+    provider="$(provider_get_for_phase "build")"
+
+    # Resolve model for specified capability
+    if ! model="$(provider_resolve_model "$provider" "$capability" 2>/dev/null)"; then
+        log_error "No model configured for capability: $capability"
+        return 1
+    fi
+
+    log_debug "Direct capability invocation: $capability -> $provider/$model"
+
+    # Invoke provider directly (no fallback chain for step-level invocations)
+    provider_invoke "$provider" "$model" "$prompt_file" "${extra_args[@]}"
 }
 
 # Auto-detect provider from model name

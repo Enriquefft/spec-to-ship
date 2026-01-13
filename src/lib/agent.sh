@@ -12,6 +12,10 @@ source "${LIB_DIR}/provider.sh"
 source "${LIB_DIR}/tools.sh"
 # shellcheck source=src/lib/interaction.sh
 source "${LIB_DIR}/interaction.sh"
+# shellcheck source=src/lib/adaptive.sh
+source "${LIB_DIR}/adaptive.sh"
+# shellcheck source=src/lib/plan.sh
+source "${LIB_DIR}/plan.sh"
 
 # ==============================================================================
 # Constants
@@ -23,18 +27,40 @@ AGENT_HISTORY_FILE=""
 # Main Loop
 # ==============================================================================
 
-# agent_run_task(task_description, context_files...)
+# agent_run_task(task_id, task_description, context_files...)
 # Main entry point to start an agentic task.
+# Args:
+#   task_id: Task identifier (e.g., T001) for adaptive model selection
+#   task: Task description
+#   context_files: Optional context files to include
 agent_run_task() {
-    local task="$1"
-    shift
-    local context_files=($@)
+    local task_id="$1"
+    local task="$2"
+    shift 2
+    local context_files=("$@")
 
     # 1. Setup Workspace
     AGENT_HISTORY_FILE="$(mktemp)"
-    trap 'rm -f "$AGENT_HISTORY_FILE"' EXIT
-    
-    # 2. Construct Initial System Prompt
+
+    # Cleanup function for trap
+    _agent_cleanup() {
+        adaptive_cleanup_task "$task_id" 2>/dev/null || true
+        rm -f "$AGENT_HISTORY_FILE" 2>/dev/null || true
+    }
+    trap '_agent_cleanup' EXIT
+
+    # 2. Get task complexity and initialize adaptive state
+    local task_complexity
+    if adaptive_is_enabled; then
+        task_complexity="$(plan_get_task_complexity "$task_id" 2>/dev/null)" || task_complexity="high"
+        adaptive_init_task "$task_id" "$task_complexity"
+        log_info "Agent started on task: ${task:0:50}... (complexity: $task_complexity)"
+    else
+        task_complexity="high"
+        log_info "Agent started on task: ${task:0:50}... (adaptive disabled)"
+    fi
+
+    # 3. Construct Initial System Prompt
     local system_prompt_file="${LIB_DIR}/../prompts/system_agent.md"
     if [[ ! -f "$system_prompt_file" ]]; then
         log_error "System prompt not found: $system_prompt_file"
@@ -60,22 +86,79 @@ agent_run_task() {
         echo "# INTERACTION HISTORY"
     } > "$AGENT_HISTORY_FILE"
 
-    # 3. The ReAct Loop
+    # 4. The ReAct Loop with Adaptive Model Selection
     local step=0
     local done=false
-    
-    log_info "Agent started on task: ${task:0:50}..."
+    local prev_response=""
 
     while [[ $step -lt $AGENT_MAX_STEPS && "$done" == "false" ]]; do
         ((step++))
-        log_debug "Agent Step $step/$AGENT_MAX_STEPS"
 
-        # A. Invoke Provider
-        # We assume provider_invoke writes result to stdout
+        # A. History Compression (for token efficiency)
+        if adaptive_is_enabled && adaptive_should_compress_history "$step"; then
+            adaptive_compress_history "$AGENT_HISTORY_FILE"
+        fi
+
+        # B. Determine step capability (adaptive model selection)
+        local step_type step_capability effective_tier
+        if adaptive_is_enabled; then
+            step_type=$(adaptive_classify_step "$step" "$prev_response")
+            effective_tier=$(adaptive_get_current_tier "$task_id")
+            step_capability=$(adaptive_get_step_capability "$step_type" "$effective_tier")
+            log_debug "Agent Step $step/$AGENT_MAX_STEPS: type=$step_type, capability=$step_capability"
+        else
+            step_capability="high"
+            log_debug "Agent Step $step/$AGENT_MAX_STEPS"
+        fi
+
+        # C. Invoke Provider with appropriate capability
         local response
-        # Using build phase configuration by default
-        response=$(provider_invoke_for_phase "build" "$AGENT_HISTORY_FILE")
-        
+        local invoke_status=0
+
+        if adaptive_is_enabled; then
+            response=$(provider_invoke_with_capability "$step_capability" "$AGENT_HISTORY_FILE") || invoke_status=$?
+        else
+            response=$(provider_invoke_for_phase "build" "$AGENT_HISTORY_FILE") || invoke_status=$?
+        fi
+
+        # D. Handle invocation failures with escalation
+        if [[ $invoke_status -ne 0 ]] || [[ -z "$response" ]]; then
+            log_warn "Agent step $step failed (capability: $step_capability)"
+
+            if adaptive_is_enabled; then
+                local escalation_result
+                adaptive_record_failure "$task_id"
+                escalation_result=$?
+
+                case $escalation_result in
+                    0)  # Retry same tier
+                        log_info "Retrying step with same capability ($step_capability)..."
+                        ((step--))  # Don't count this as a step
+                        continue
+                        ;;
+                    1)  # Escalated - retry with new tier
+                        local new_tier
+                        new_tier=$(adaptive_get_current_tier "$task_id")
+                        log_info "Escalated to $new_tier capability, retrying..."
+                        ((step--))  # Don't count this as a step
+                        continue
+                        ;;
+                    2)  # At max tier, still failing
+                        log_error "Step failed at maximum capability (high)"
+                        # Continue anyway - maybe model can recover
+                        ;;
+                esac
+            fi
+        fi
+
+        # E. Record success for adaptive tracking
+        if adaptive_is_enabled && [[ -n "$response" ]]; then
+            adaptive_record_success "$task_id"
+        fi
+
+        # Store response for next iteration's step classification
+        prev_response="$response"
+
         # Log the raw response for debugging
         log_debug "Raw Agent Response: ${response:0:100}..."
 
@@ -84,9 +167,9 @@ agent_run_task() {
         echo "## Assistant (Step $step)" >> "$AGENT_HISTORY_FILE"
         echo "$response" >> "$AGENT_HISTORY_FILE"
 
-        # B. Parse and Execute
+        # F. Parse and Execute
         # We look for ONE action per turn (Tool or Ask or Finish)
-        
+
         # Check for <final_answer>
         if echo "$response" | grep -q "<final_answer>"; then
             log_info "Agent completed task."
@@ -107,7 +190,6 @@ agent_run_task() {
         fi
 
         # Fallback: If no tags found, treat as thought/comment
-        # Maybe force a reminder if it loops too long without acting?
         log_warn "Agent produced no executable tags. Continuing..."
     done
 
