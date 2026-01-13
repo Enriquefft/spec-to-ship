@@ -27,7 +27,7 @@ provider_claude_validate() {
 # Map model names to Claude CLI format
 provider_claude_map_model() {
     local model="$1"
-    
+
     case "$model" in
         opus|claude-opus|claude-opus-*)
             echo "claude-opus-4-20250514"
@@ -35,8 +35,8 @@ provider_claude_map_model() {
         sonnet|claude-sonnet|claude-sonnet-*)
             echo "claude-sonnet-4-5-20250929"
             ;;
-        haiku|claude-haiku|claude-haiku-*)
-            echo "claude-haiku-4-20250319"
+        haiku|claude-haiku|claude-haiku-*|claude-3-5-haiku*)
+            echo "claude-3-5-haiku-20241022"
             ;;
         claude-*)
             # Already in Claude format
@@ -50,31 +50,37 @@ provider_claude_map_model() {
 }
 
 # Execute command with exponential backoff retry
+# Args:
+#   prompt_file: Path to the prompt file (for stdin redirection inside loop)
+#   ...: Command and arguments to execute
 _provider_claude_retry_with_backoff() {
+    local prompt_file="$1"
+    shift
     local max_attempts
     local base_delay
     max_attempts="$(config_get "RETRY_MAX_ATTEMPTS")"
     base_delay="$(config_get "RETRY_BASE_DELAY")"
-    
+
     local attempt=1
     local delay="$base_delay"
-    
+
     while [[ $attempt -le $max_attempts ]]; do
         log_debug "Attempt $attempt/$max_attempts"
-        
-        if "$@"; then
+
+        # Redirect stdin INSIDE loop so each attempt gets fresh file content
+        if "$@" < "$prompt_file"; then
             return 0
         fi
-        
+
         if [[ $attempt -lt $max_attempts ]]; then
             log_warn "Attempt $attempt failed, retrying in ${delay}s..."
             sleep "$delay"
             delay=$((delay * 2))
         fi
-        
+
         ((attempt++))
     done
-    
+
     log_error "All $max_attempts attempts failed"
     return 1
 }
@@ -108,7 +114,8 @@ provider_claude_invoke() {
     fi
     
     # Invoke Claude with retry - stdout captured by caller, let stderr pass through
-    if _provider_claude_retry_with_backoff "${claude_cmd[@]}" < "$prompt_file"; then
+    # Pass prompt_file as first arg so retry loop can re-read it on each attempt
+    if _provider_claude_retry_with_backoff "$prompt_file" "${claude_cmd[@]}"; then
         return 0
     else
         local exit_code=$?
@@ -145,7 +152,8 @@ provider_claude_stream() {
     fi
     
     # Stream directly to stdout
-    _provider_claude_retry_with_backoff "${claude_cmd[@]}" < "$prompt_file"
+    # Pass prompt_file as first arg so retry loop can re-read it on each attempt
+    _provider_claude_retry_with_backoff "$prompt_file" "${claude_cmd[@]}"
 }
 
 # Claude provider with context files
@@ -219,14 +227,21 @@ provider_claude_interactive() {
     
     # Check if prompt file has content
     if [[ -s "$prompt_file" ]]; then
+        # Ensure trailing newline in prompt file
+        if [[ "$(tail -c 1 "$prompt_file" | wc -l)" -eq 0 ]]; then
+            echo "" >> "$prompt_file"
+        fi
         # Send initial message and start interactive mode
-        {
-            cat "$prompt_file"
-            echo ""  # Ensure newline after prompt
-        } | _provider_claude_retry_with_backoff "${claude_cmd[@]}"
+        _provider_claude_retry_with_backoff "$prompt_file" "${claude_cmd[@]}"
     else
-        # Just start interactive mode
-        _provider_claude_retry_with_backoff "${claude_cmd[@]}"
+        # Just start interactive mode with empty input
+        local empty_prompt result
+        empty_prompt="$(mktemp)"
+        echo "" > "$empty_prompt"
+        _provider_claude_retry_with_backoff "$empty_prompt" "${claude_cmd[@]}"
+        result=$?
+        rm -f "$empty_prompt"
+        return $result
     fi
 }
 
@@ -235,7 +250,7 @@ provider_claude_list_models() {
     echo "Available Claude models:"
     echo "  opus (claude-opus-4-20250514) - Most capable model"
     echo "  sonnet (claude-sonnet-4-5-20250929) - Balanced model"
-    echo "  haiku (claude-haiku-4-20250319) - Fast model"
+    echo "  haiku (claude-3-5-haiku-20241022) - Fast model"
 }
 
 # Claude provider with input from stdin
@@ -282,7 +297,7 @@ provider_claude_init() {
     fi
     
     if ! config_get "PROVIDER_CLAUDE_MODEL_LOW" >/dev/null; then
-        config_set "PROVIDER_CLAUDE_MODEL_LOW" "claude-haiku-4-20250319"
+        config_set "PROVIDER_CLAUDE_MODEL_LOW" "claude-3-5-haiku-20241022"
     fi
 }
 

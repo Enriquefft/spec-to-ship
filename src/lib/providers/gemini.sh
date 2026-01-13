@@ -64,6 +64,10 @@ provider_gemini_map_model() {
         low)
             echo "gemini-2.5-flash"  # Use 2.5-flash for low capability too
             ;;
+        gemini-*)
+            # Already in Gemini format
+            echo "$capability"
+            ;;
         *)
             log_error "Unknown capability level for Gemini: $capability"
             return 1
