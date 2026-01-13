@@ -1,10 +1,33 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with
+code in this repository.
 
 ## Project Overview
 
-**Spec-to-Ship** is a Bash-based workflow system (POSIX-compatible, shellcheck-compliant) that orchestrates AI models to transform PRDs into working software through phases: clarify → specs → arch → plan → build → gate.
+**Spec-to-Ship** is a Bash-based workflow system (POSIX-compatible,
+shellcheck-compliant) that orchestrates AI models to transform PRDs into working
+software through phases: clarify → specs → arch → plan → build → gate.
+
+## Our script usage (this is what users do), don't do it manually
+
+```bash
+# Install
+git clone <repository-url> && cd spec-to-ship
+export PATH="$PWD/src:$PATH"
+
+# Initialize project
+mkdir my-project && cd my-project && git init
+workflow init
+
+# Edit docs/PRD.md with your requirements, then:
+workflow clarify    # Refine requirements interactively
+workflow constitution # Define the project non-negotiables
+workflow specs      # Generate feature specifications
+workflow arch       # Create architecture document
+workflow plan       # Generate implementation plan
+workflow build      # Execute autonomous build loop
+```
 
 ## Development Commands
 
@@ -45,17 +68,22 @@ tests/
 ### Key Design Patterns
 
 **Provider Abstraction** (`src/lib/provider.sh`)
+
 - Multi-provider support with automatic fallback chains
 - Use: `provider_invoke_for_phase "build" "$prompt_file"`
-- Config: `PROVIDER_DEFAULT`, `PROVIDER_<PHASE>`, `PROVIDER_<PROVIDER>_MODEL_<CAPABILITY>`
+- Config: `PROVIDER_DEFAULT`, `PROVIDER_<PHASE>`,
+  `PROVIDER_<PROVIDER>_MODEL_<CAPABILITY>`
 
 **Plan-as-State** (`src/lib/plan.sh`)
+
 - Implementation plan in `docs/IMPLEMENTATION_PLAN.md` is source of truth
 - Tasks have states: pending/in_progress/done/blocked
 - Update via: `plan_update_task_state`
 
 **Agent Polyfill** (`src/lib/agent.sh`)
-- Wraps text models to simulate tool-calling with XML tags: `<tool_code>`, `<ask_user>`, `<final_answer>`
+
+- Wraps text models to simulate tool-calling with XML tags: `<tool_code>`,
+  `<ask_user>`, `<final_answer>`
 
 ### Per project configuration
 
