@@ -219,8 +219,9 @@ provider_invoke() {
     spinner_start "Thinking"
 
     # Run provider - runs in foreground, Ctrl+C goes directly to it
-    # Note: 2>&1 is needed because some providers (claude --print) may output to stderr
-    if "provider_${provider}_invoke" "$model" "$prompt_file" "${extra_args[@]}" > "$temp_output" 2>&1; then
+    # Note: Removed 2>&1 to prevent capturing logs (stderr) into the output (stdout).
+    # Providers must output content to stdout.
+    if "provider_${provider}_invoke" "$model" "$prompt_file" "${extra_args[@]}" > "$temp_output"; then
         exit_code=0
     else
         exit_code=$?
@@ -363,7 +364,7 @@ provider_get_fallback_chain() {
     local -a chain=("$primary")
 
     # Add fallbacks in priority order
-    for fallback in opencode claude gemini; do
+    for fallback in copilot opencode claude gemini; do
         if [[ "$fallback" != "$primary" ]] && provider_is_registered "$fallback"; then
             chain+=("$fallback")
         fi
