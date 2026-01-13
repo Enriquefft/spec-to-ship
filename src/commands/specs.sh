@@ -16,6 +16,8 @@ source "$LIB_DIR/claude.sh"
 source "$LIB_DIR/tempfiles.sh"
 # shellcheck source=src/lib/context.sh
 source "$LIB_DIR/context.sh"
+# shellcheck source=src/lib/constitution.sh
+source "$LIB_DIR/constitution.sh"
 
 # cmd_specs - Generate specification files from structured PRD
 cmd_specs() {
@@ -92,6 +94,17 @@ cmd_specs() {
 Run 'workflow clarify' first to generate the structured PRD."
     fi
 
+    # Check for constitution (mandatory)
+    if ! constitution_find "$project_root" >/dev/null 2>&1; then
+        die "Constitution not found.
+
+Run 'workflow constitution' first to establish project principles.
+
+The constitution defines governance rules that guide all development.
+Location: .workflow/constitution.md"
+    fi
+    log_info "Constitution validated"
+
     log_info "Loading structured PRD: $prd_structured"
 
     # Read structured PRD content
@@ -153,7 +166,7 @@ Run 'workflow clarify' first to generate the structured PRD."
 
         # Generate spec file
         log_info "  Generating spec: $spec_file"
-        if _generate_spec "$activity_name" "$activity_section" "$spec_path" "$all_spec_files" "$project_root" "$context_mode" "$prd_content"; then
+        if _generate_spec "$activity_name" "$activity_section" "$spec_path" "$all_spec_files" "$project_root" "$context_mode" "$prd_structured"; then
             log_info "  ${COLOR_GREEN}✓${COLOR_RESET} Generated: $spec_file"
             generated_count=$((generated_count + 1))
         else

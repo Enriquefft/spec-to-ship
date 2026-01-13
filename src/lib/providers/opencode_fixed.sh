@@ -143,26 +143,14 @@ provider_opencode_fixed_invoke() {
     # Add the prompt file
     opencode_cmd+=(-f "$prompt_file")
     
-    # Invoke OpenCode with retry - message comes first as positional argument
-    local output
-    local exit_code
-    
-    if output=$(_provider_opencode_fixed_retry_with_backoff "${opencode_cmd[@]}" "$message" 2>&1); then
-        exit_code=0
+    # Invoke OpenCode with retry - stdout captured by caller, let stderr pass through
+    if _provider_opencode_fixed_retry_with_backoff "${opencode_cmd[@]}" "$message"; then
+        return 0
     else
-        exit_code=$?
-    fi
-    
-    # Echo output (regardless of exit code)
-    echo "$output"
-    
-    # Log errors if needed
-    if [[ $exit_code -ne 0 ]]; then
+        local exit_code=$?
         log_error "OpenCode invocation failed with exit code $exit_code"
-        log_error "Output: $output"
+        return $exit_code
     fi
-    
-    return $exit_code
 }
 
 # OpenCode provider stream implementation

@@ -13,6 +13,7 @@ CONFIG_DEFAULTS=(
     # Provider selection
     [PROVIDER_DEFAULT]="claude"
     [PROVIDER_CLARIFY]="claude"
+    [PROVIDER_CONSTITUTION]="claude"
     [PROVIDER_SPECS]="claude"
     [PROVIDER_ARCH]="claude"
     [PROVIDER_PLAN]="claude"
@@ -37,6 +38,7 @@ CONFIG_DEFAULTS=(
 
     # Capability overrides per phase
     [CAPABILITY_CLARIFY]="high"
+    [CAPABILITY_CONSTITUTION]="high"
     [CAPABILITY_SPECS]="medium"
     [CAPABILITY_ARCH]="high"
     [CAPABILITY_PLAN]="high"
@@ -46,6 +48,7 @@ CONFIG_DEFAULTS=(
 
     # Legacy model mappings (backward compatibility)
     [MODEL_CLARIFY]="opus"
+    [MODEL_CONSTITUTION]="opus"
     [MODEL_SPECS]="sonnet"
     [MODEL_ARCH]="opus"
     [MODEL_PLAN]="opus"
@@ -321,7 +324,7 @@ config_validate() {
     fi
 
     # Validate model selections (O(1) lookup)
-    for key in MODEL_CLARIFY MODEL_SPECS MODEL_ARCH MODEL_PLAN MODEL_BUILD_PRIMARY MODEL_BUILD_SECONDARY MODEL_GATE MODEL_FEEDBACK; do
+    for key in MODEL_CLARIFY MODEL_CONSTITUTION MODEL_SPECS MODEL_ARCH MODEL_PLAN MODEL_BUILD_PRIMARY MODEL_BUILD_SECONDARY MODEL_GATE MODEL_FEEDBACK; do
         local model="${CONFIG[$key]}"
         if ! _is_valid_model "$model"; then
             log_error "Invalid model for $key: $model (must be one of: ${VALID_MODELS[*]})"
@@ -337,7 +340,7 @@ config_validate() {
     fi
 
     # Validate provider values (O(1) lookup)
-    for key in PROVIDER_DEFAULT PROVIDER_CLARIFY PROVIDER_SPECS PROVIDER_ARCH PROVIDER_PLAN PROVIDER_BUILD PROVIDER_GATE PROVIDER_FEEDBACK; do
+    for key in PROVIDER_DEFAULT PROVIDER_CLARIFY PROVIDER_CONSTITUTION PROVIDER_SPECS PROVIDER_ARCH PROVIDER_PLAN PROVIDER_BUILD PROVIDER_GATE PROVIDER_FEEDBACK; do
         if [[ -n "${CONFIG[$key]:-}" ]]; then
             local value="${CONFIG[$key]}"
             if ! _is_valid_provider "$value"; then
@@ -348,7 +351,7 @@ config_validate() {
     done
 
     # Validate capability values (O(1) lookup)
-    for key in CAPABILITY_CLARIFY CAPABILITY_SPECS CAPABILITY_ARCH CAPABILITY_PLAN CAPABILITY_BUILD CAPABILITY_GATE CAPABILITY_FEEDBACK; do
+    for key in CAPABILITY_CLARIFY CAPABILITY_CONSTITUTION CAPABILITY_SPECS CAPABILITY_ARCH CAPABILITY_PLAN CAPABILITY_BUILD CAPABILITY_GATE CAPABILITY_FEEDBACK; do
         if [[ -n "${CONFIG[$key]:-}" ]]; then
             local value="${CONFIG[$key]}"
             if ! _is_valid_capability "$value"; then
@@ -391,6 +394,9 @@ config_model_for_phase() {
     case "$phase" in
         clarify)
             config_get "MODEL_CLARIFY"
+            ;;
+        constitution)
+            config_get "MODEL_CONSTITUTION"
             ;;
         specs)
             config_get "MODEL_SPECS"

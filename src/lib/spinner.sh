@@ -3,41 +3,36 @@
 
 # Global state
 _SPINNER_PID=""
-_SPINNER_MESSAGE=""
-_SPINNER_START_TIME=""
 _SPINNER_PREV_TRAP_INT=""
 _SPINNER_PREV_TRAP_TERM=""
-
-# spinner_is_tty() - Check if stderr is a TTY
-spinner_is_tty() {
-    [[ -t 2 ]]
-}
 
 # spinner_start(message) - Start the spinner/indicator
 # Arguments:
 #   message - What operation is happening (e.g., "Thinking")
 spinner_start() {
     local message="${1:-Working}"
+    local start_time
+    start_time="$(date +%s)"
 
     # Cleanup any existing spinner
     spinner_stop 2>/dev/null || true
-
-    _SPINNER_MESSAGE="$message"
-    _SPINNER_START_TIME="$(date +%s)"
 
     # Save existing traps
     _SPINNER_PREV_TRAP_INT="$(trap -p INT)"
     _SPINNER_PREV_TRAP_TERM="$(trap -p TERM)"
 
-    if spinner_is_tty; then
-        _spinner_tty_loop &
+    # Check if stderr is a TTY
+    if [[ -t 2 ]]; then
+        # TTY mode: animated spinner
+        # Pass message and start_time as arguments to avoid variable inheritance issues
+        _spinner_tty_loop "$message" "$start_time" &
         _SPINNER_PID=$!
         # Setup cleanup trap
-        trap '_spinner_cleanup_and_chain INT' INT
-        trap '_spinner_cleanup_and_chain TERM' TERM
+        trap '_spinner_cleanup INT' INT
+        trap '_spinner_cleanup TERM' TERM
     else
-        # Non-TTY: Log periodic updates in background
-        _spinner_nontty_loop &
+        # Non-TTY: periodic log messages
+        _spinner_nontty_loop "$message" "$start_time" &
         _SPINNER_PID=$!
     fi
 }
@@ -50,13 +45,10 @@ spinner_stop() {
         _SPINNER_PID=""
     fi
 
-    if spinner_is_tty && [[ -n "$_SPINNER_MESSAGE" ]]; then
-        # Clear the spinner line
+    # Clear the spinner line if TTY
+    if [[ -t 2 ]]; then
         printf '\r\033[K' >&2
     fi
-
-    _SPINNER_MESSAGE=""
-    _SPINNER_START_TIME=""
 
     # Restore previous traps
     if [[ -n "$_SPINNER_PREV_TRAP_INT" ]]; then
@@ -74,11 +66,11 @@ spinner_stop() {
     _SPINNER_PREV_TRAP_TERM=""
 }
 
-# _spinner_cleanup_and_chain(signal) - Clean up and call previous trap
-_spinner_cleanup_and_chain() {
+# _spinner_cleanup(signal) - Clean up spinner on signal
+_spinner_cleanup() {
     local signal="$1"
 
-    # Stop the spinner first
+    # Stop the spinner
     if [[ -n "$_SPINNER_PID" ]]; then
         kill "$_SPINNER_PID" 2>/dev/null || true
         wait "$_SPINNER_PID" 2>/dev/null || true
@@ -86,11 +78,11 @@ _spinner_cleanup_and_chain() {
     fi
 
     # Clear the line
-    if spinner_is_tty; then
+    if [[ -t 2 ]]; then
         printf '\r\033[K' >&2
     fi
 
-    # Call previous trap handler if it existed
+    # Call previous trap handler
     case "$signal" in
         INT)
             if [[ -n "$_SPINNER_PREV_TRAP_INT" ]]; then
@@ -105,17 +97,26 @@ _spinner_cleanup_and_chain() {
     esac
 }
 
-# _spinner_tty_loop() - Internal: animated dots for TTY
+# _spinner_tty_loop(message, start_time) - Animated spinner for TTY
 _spinner_tty_loop() {
+    local message="$1"
+    local start_time="$2"
     local dots=""
     local max_dots=5
-    local interval=1
     local show_time_after=10
 
-    while true; do
-        local elapsed=$(($(date +%s) - _SPINNER_START_TIME))
+    # Print immediately so user sees something
+    echo >&2  # newline after previous log message
+    printf '    \033[1;33m⏳ %s\033[0m' "$message" >&2
 
-        # Accumulate dots, reset after max
+    while true; do
+        sleep 0.5
+
+        local now
+        now="$(date +%s)"
+        local elapsed=$((now - start_time))
+
+        # Accumulate dots
         dots="${dots}."
         if [[ ${#dots} -gt $max_dots ]]; then
             dots="."
@@ -124,26 +125,27 @@ _spinner_tty_loop() {
         # Build display string
         local display
         if [[ $elapsed -ge $show_time_after ]]; then
-            display="$_SPINNER_MESSAGE $dots (${elapsed}s)"
+            display="⏳ $message$dots (${elapsed}s)"
         else
-            display="$_SPINNER_MESSAGE $dots"
+            display="⏳ $message$dots"
         fi
 
-        # Print on same line: indented, gray
-        printf '\r\033[K    \033[0;90m%s\033[0m' "$display" >&2
-
-        sleep "$interval"
+        # Print on same line: yellow, bold
+        printf '\r\033[K    \033[1;33m%s\033[0m' "$display" >&2
     done
 }
 
-# _spinner_nontty_loop() - Internal: periodic logging for non-TTY
+# _spinner_nontty_loop(message, start_time) - Periodic logging for non-TTY (CI)
 _spinner_nontty_loop() {
-    local interval=30  # Log every 30 seconds in CI
+    local message="$1"
+    local start_time="$2"
+    local interval=30
 
     while true; do
         sleep "$interval"
-        local elapsed=$(($(date +%s) - _SPINNER_START_TIME))
-        # Simple progress message without colors for non-TTY
-        echo "[INFO] [workflow] ...${_SPINNER_MESSAGE} (${elapsed}s)" >&2
+        local now
+        now="$(date +%s)"
+        local elapsed=$((now - start_time))
+        echo "[INFO] [workflow] ...$message (${elapsed}s)" >&2
     done
 }

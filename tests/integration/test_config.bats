@@ -23,15 +23,25 @@ teardown() {
   rm -rf "$TEST_DIR"
 }
 
-# Test: Show full configuration
-@test "config shows full configuration by default" {
+# Test: Show summary by default
+@test "config shows summary by default" {
   run "$WORKFLOW_BIN" config
 
   [ "$status" -eq 0 ]
+  [[ "$output" == *"Configuration Summary"* ]]
+  [[ "$output" == *"Default Provider:"* ]]
+  [[ "$output" == *"Default Models:"* ]]
+}
+
+# Test: Show full configuration with --list
+@test "config --list shows full configuration" {
+  run "$WORKFLOW_BIN" config --list
+
+  [ "$status" -eq 0 ]
   [[ "$output" == *"Configuration file:"* ]]
-  [[ "$output" == *"Model Settings"* ]]
-  [[ "$output" == *"HITL Settings"* ]]
-  [[ "$output" == *"Build Settings"* ]]
+  [[ "$output" == *"Provider Settings"* ]]
+  [[ "$output" == *"Model Mappings"* ]]
+  [[ "$output" == *"Legacy/Compat Settings"* ]]
   [[ "$output" == *"MODEL_CLARIFY="* ]]
   [[ "$output" == *"HITL_ENABLED="* ]]
 }
@@ -118,6 +128,7 @@ teardown() {
   [[ "$output" == *"--edit"* ]]
   [[ "$output" == *"--get"* ]]
   [[ "$output" == *"--set"* ]]
+  [[ "$output" == *"--set-model"* ]]
 }
 
 # Test: Config file is created if missing
@@ -128,7 +139,7 @@ teardown() {
   run "$WORKFLOW_BIN" config
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *"Configuration file"* ]]
+  [[ "$output" == *"Created default configuration"* ]]
 
   # Verify config file exists
   [ -f "$TEST_DIR/.workflow/config.sh" ]
@@ -202,4 +213,30 @@ teardown() {
   run "$WORKFLOW_BIN" config --get HITL_MODE
   [ "$status" -eq 0 ]
   [[ "$output" == "task" ]]
+}
+
+# Test: Set model for everything
+@test "config --set-model updates all phases" {
+  run "$WORKFLOW_BIN" config --set-model claude-3-opus-20240229
+  
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Configuring workflow to use 'claude-3-opus-20240229' for everything"* ]]
+  
+  # Check config file directly
+  grep -q 'PROVIDER_DEFAULT="claude"' "$TEST_DIR/.workflow/config.sh"
+  grep -q 'PROVIDER_CLAUDE_MODEL_HIGH="claude-3-opus-20240229"' "$TEST_DIR/.workflow/config.sh"
+  
+  # Ensure overrides are gone (should not find PROVIDER_CLARIFY if it was unset)
+  ! grep -q "PROVIDER_CLARIFY=" "$TEST_DIR/.workflow/config.sh"
+}
+
+# Test: Set provider default
+@test "config --set-provider switch provider" {
+  run "$WORKFLOW_BIN" config --set-provider opencode
+  
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Switching default provider to 'opencode'"* ]]
+  
+  # Check config file directly
+  grep -q 'PROVIDER_DEFAULT="opencode"' "$TEST_DIR/.workflow/config.sh"
 }

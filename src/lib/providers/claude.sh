@@ -107,26 +107,14 @@ provider_claude_invoke() {
         claude_cmd+=("${extra_args[@]}")
     fi
     
-    # Invoke Claude with retry
-    local output
-    local exit_code
-    
-    if output=$(_provider_claude_retry_with_backoff "${claude_cmd[@]}" < "$prompt_file" 2>&1); then
-        exit_code=0
+    # Invoke Claude with retry - stdout captured by caller, let stderr pass through
+    if _provider_claude_retry_with_backoff "${claude_cmd[@]}" < "$prompt_file"; then
+        return 0
     else
-        exit_code=$?
-    fi
-    
-    # Echo output (regardless of exit code)
-    echo "$output"
-    
-    # Log errors if needed
-    if [[ $exit_code -ne 0 ]]; then
+        local exit_code=$?
         log_error "Claude invocation failed with exit code $exit_code"
-        log_error "Output: $output"
+        return $exit_code
     fi
-    
-    return $exit_code
 }
 
 # Claude provider stream implementation

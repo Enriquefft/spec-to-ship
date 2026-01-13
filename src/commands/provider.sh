@@ -267,7 +267,7 @@ cmd_provider_test() {
         return 1
     fi
 
-    if response=$(provider_invoke "$provider" "$model" "$temp_prompt" 2>&1); then
+    if response=$(provider_invoke "$provider" "$model" "$temp_prompt"); then
         end_time=$(date +%s%3N)
         duration=$((end_time - start_time))
         echo "✓ Passed (${duration}ms)"

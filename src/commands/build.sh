@@ -282,7 +282,7 @@ cmd_build() {
         build_state_save "$task_id" "$iteration" "$current_milestone" "running"
 
         log_info "[$iteration/$max_iterations] Executing task: $task_id"
-        audit_task_start "$task_id" "${PLAN_TASK_DESC[$task_id]:-}"
+        audit_task_start "$task_id" "${PLAN_TASKS[$task_id]:-}"
         echo ""
 
         # Detect milestone change

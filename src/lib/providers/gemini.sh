@@ -112,47 +112,23 @@ provider_gemini_invoke() {
         local prompt_content
         prompt_content="$(cat "$prompt_file")"
         
-        # Invoke with retry
-        local output
-        local exit_code
-        
-        if output=$(_provider_gemini_retry_with_backoff "${gemini_cmd[@]}" "$prompt_content" 2>&1); then
-            exit_code=0
+        # Invoke with retry - stdout captured by caller, let stderr pass through
+        if _provider_gemini_retry_with_backoff "${gemini_cmd[@]}" "$prompt_content"; then
+            return 0
         else
-            exit_code=$?
-        fi
-        
-        # Echo output
-        echo "$output"
-        
-        # Log errors if needed
-        if [[ $exit_code -ne 0 ]]; then
+            local exit_code=$?
             log_error "Gemini invocation failed with exit code $exit_code"
-            log_error "Output: $output"
+            return $exit_code
         fi
-        
-        return $exit_code
     else
-        # Large file - use stdin
-        local output
-        local exit_code
-        
-        if output=$(_provider_gemini_retry_with_backoff "${gemini_cmd[@]}" < "$prompt_file" 2>&1); then
-            exit_code=0
+        # Large file - use stdin - stdout captured by caller, let stderr pass through
+        if _provider_gemini_retry_with_backoff "${gemini_cmd[@]}" < "$prompt_file"; then
+            return 0
         else
-            exit_code=$?
-        fi
-        
-        # Echo output
-        echo "$output"
-        
-        # Log errors if needed
-        if [[ $exit_code -ne 0 ]]; then
+            local exit_code=$?
             log_error "Gemini invocation failed with exit code $exit_code"
-            log_error "Output: $output"
+            return $exit_code
         fi
-        
-        return $exit_code
     fi
 }
 

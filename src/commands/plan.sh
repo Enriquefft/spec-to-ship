@@ -139,10 +139,10 @@ Use --regen to regenerate the plan (this will overwrite existing plan)."
     # Generate implementation plan
     if [[ -n "$milestone" ]]; then
         log_info "Generating plan for milestone: $milestone"
-        _plan_generate_milestone "$project_root" "$model" "$milestone" "${spec_files[@]}"
+        _plan_generate_milestone "$project_root" "$milestone" "${spec_files[@]}"
     else
         log_info "Generating complete implementation plan..."
-        _plan_generate "$project_root" "$model" "$gap_analysis" "${spec_files[@]}" "$planning_approach"
+        _plan_generate "$project_root" "$gap_analysis" "${spec_files[@]}" "$planning_approach"
     fi
 
     if [[ -f "$plan_file" ]]; then
@@ -244,12 +244,11 @@ _generate_spec_summaries() {
 }
 
 # _plan_generate - Generate complete implementation plan
-# Arguments: project_root, model, gap_analysis, spec_files..., planning_approach
+# Arguments: project_root, gap_analysis, spec_files..., planning_approach
 _plan_generate() {
     local project_root="$1"
-    local model="$2"
-    local gap_analysis="$3"
-    shift 3
+    local gap_analysis="$2"
+    shift 2
     local planning_approach="${@: -1}"
     local -a spec_files=("${@:1:$#-1}")
 
@@ -377,12 +376,11 @@ _plan_generate() {
 }
 
 # _plan_generate_milestone - Generate plan for specific milestone
-# Arguments: project_root, model, milestone, spec_files...
+# Arguments: project_root, milestone, spec_files...
 _plan_generate_milestone() {
     local project_root="$1"
-    local model="$2"
-    local milestone="$3"
-    shift 3
+    local milestone="$2"
+    shift 2
     local -a spec_files=("$@")
 
     # Check if full plan exists

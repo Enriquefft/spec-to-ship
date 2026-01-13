@@ -184,20 +184,45 @@ provider_invoke() {
     # Call provider's invoke function
     log_debug "Invoking $provider with model $model"
 
+    # Use temp file to capture output while allowing stderr to pass through
+    local temp_output
+    temp_output="$(mktemp)"
+    local exit_code=0
+
+    # Setup cleanup trap for Ctrl+C
+    local _cleanup_done=""
+    _provider_cleanup() {
+        [[ -n "$_cleanup_done" ]] && return
+        _cleanup_done=1
+        spinner_stop
+        rm -f "$temp_output" 2>/dev/null
+        echo "" >&2
+        log_warn "Interrupted"
+    }
+    trap '_provider_cleanup; exit 130' INT
+    trap '_provider_cleanup; exit 143' TERM
+
     # Start spinner during the blocking call
     spinner_start "Thinking"
 
-    local output exit_code=0
-    if output=$("provider_${provider}_invoke" "$model" "$prompt_file" "${extra_args[@]}" 2>&1); then
+    # Run provider - runs in foreground, Ctrl+C goes directly to it
+    # Note: 2>&1 is needed because some providers (claude --print) may output to stderr
+    if "provider_${provider}_invoke" "$model" "$prompt_file" "${extra_args[@]}" > "$temp_output" 2>&1; then
         exit_code=0
     else
         exit_code=$?
     fi
 
+    # Clear trap
+    trap - INT TERM
+
     # Stop spinner after completion
     spinner_stop
 
-    echo "$output"
+    # Output the captured result
+    cat "$temp_output"
+    rm -f "$temp_output"
+
     return $exit_code
 }
 
@@ -365,9 +390,9 @@ provider_invoke_for_phase() {
             continue
         fi
 
-        # Try to invoke provider
+        # Try to invoke provider (don't capture stderr - let spinner/progress show)
         local result
-        if result=$(provider_invoke "$try_provider" "$model" "$prompt_file" "${extra_args[@]}" 2>&1); then
+        if result=$(provider_invoke "$try_provider" "$model" "$prompt_file" "${extra_args[@]}"); then
             echo "$result"
             return 0
         else

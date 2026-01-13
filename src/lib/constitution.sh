@@ -21,7 +21,7 @@ constitution_find() {
 
     # Check standard locations
     local locations=(
-        "$project_root/.specify/constitution.md"
+        "$project_root/.workflow/constitution.md"
         "$project_root/docs/CONSTITUTION.md"
         "$project_root/CONSTITUTION.md"
     )
@@ -100,6 +100,7 @@ constitution_list() {
 constitution_validate() {
     local project_root="${1:-.}"
     local violations=0
+    local -a violation_list=()
 
     # Load constitution
     if ! constitution_load "$project_root"; then
@@ -109,18 +110,39 @@ constitution_validate() {
 
     log_info "Validating against constitution..."
 
-    # Check each principle (placeholder for actual validation logic)
-    # In future, each principle could have associated validation rules
+    # Validation 1: Minimum principle count (3)
+    local min_principles=3
+    if [[ ${#CONSTITUTION_PRINCIPLES[@]} -lt $min_principles ]]; then
+        violation_list+=("Insufficient principles: found ${#CONSTITUTION_PRINCIPLES[@]}, minimum $min_principles required")
+        ((violations++))
+    fi
 
-    # Example validations that could be implemented:
-    # - Dependency count check
-    # - Test coverage check
-    # - Documentation check
+    # Validation 2: Each principle must have description text
+    for key in "${!CONSTITUTION_PRINCIPLES[@]}"; do
+        local principle="${CONSTITUTION_PRINCIPLES[$key]}"
+        # Check if principle has meaningful description (more than just the name)
+        local desc_part="${principle#*: }"
+        if [[ -z "$desc_part" ]] || [[ ${#desc_part} -lt 10 ]]; then
+            violation_list+=("Principle $key has insufficient description")
+            ((violations++))
+        fi
+    done
 
-    # For now, just verify constitution is parseable
-    if [[ ${#CONSTITUTION_PRINCIPLES[@]} -eq 0 ]]; then
-        log_warn "Constitution file exists but no principles parsed"
-        return 0
+    # Validation 3: Governance section exists
+    if [[ -n "$CONSTITUTION_FILE" ]] && [[ -f "$CONSTITUTION_FILE" ]]; then
+        if ! grep -q "^## Governance" "$CONSTITUTION_FILE"; then
+            violation_list+=("Missing Governance section in constitution")
+            ((violations++))
+        fi
+    fi
+
+    # Report violations if any
+    if [[ $violations -gt 0 ]]; then
+        log_warn "Constitution validation found $violations issue(s):"
+        for violation in "${violation_list[@]}"; do
+            log_warn "  - $violation"
+        done
+        return 1
     fi
 
     log_info "${COLOR_GREEN}✓${COLOR_RESET} Constitution validation passed (${#CONSTITUTION_PRINCIPLES[@]} principles)"
@@ -158,7 +180,7 @@ constitution_show() {
         echo "No constitution found in project"
         echo ""
         echo "To create one, run:"
-        echo "  cp .specify/templates/constitution.md .specify/constitution.md"
+        echo "  workflow constitution"
         return 1
     fi
 

@@ -10,12 +10,17 @@ set -euo pipefail
 source "${LIB_DIR}/common.sh"
 # shellcheck source=src/lib/config.sh
 source "${LIB_DIR}/config.sh"
+# shellcheck source=src/lib/provider.sh
+source "${LIB_DIR}/provider.sh"
 
 # cmd_config() - Main config command handler
 cmd_config() {
     local edit=false
     local get_key=""
     local set_pair=""
+    local set_model=""
+    local set_provider=""
+    local list_all=false
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -23,30 +28,48 @@ cmd_config() {
             --edit)
                 edit=true
                 shift
-                ;;
+                ;; 
             --get)
                 if [[ -z "${2:-}" ]]; then
                     die "Option --get requires an argument"
                 fi
                 get_key="$2"
                 shift 2
-                ;;
+                ;; 
             --set)
                 if [[ -z "${2:-}" ]]; then
                     die "Option --set requires an argument (format: key=value)"
                 fi
                 set_pair="$2"
                 shift 2
-                ;;
+                ;; 
+            --set-model)
+                if [[ -z "${2:-}" ]]; then
+                    die "Option --set-model requires an argument"
+                fi
+                set_model="$2"
+                shift 2
+                ;; 
+            --set-provider)
+                if [[ -z "${2:-}" ]]; then
+                    die "Option --set-provider requires an argument"
+                fi
+                set_provider="$2"
+                shift 2
+                ;; 
+            --list|--all)
+                list_all=true
+                shift
+                ;; 
             --help|-h)
                 show_help
                 exit 0
-                ;;
+                ;; 
             *)
                 log_error "Unknown option: $1"
                 show_help
                 exit 1
-                ;;
+                ;; 
         esac
     done
 
@@ -66,13 +89,18 @@ cmd_config() {
     # Execute appropriate action
     if [[ "$edit" == "true" ]]; then
         edit_config "$config_file"
+    elif [[ -n "$set_model" ]]; then
+        configure_single_model "$config_file" "$set_model"
+    elif [[ -n "$set_provider" ]]; then
+        configure_provider_defaults "$config_file" "$set_provider"
     elif [[ -n "$get_key" ]]; then
         get_config_value "$get_key"
     elif [[ -n "$set_pair" ]]; then
         set_config_value "$config_file" "$set_pair"
-    else
-        # No options: show full config
+    elif [[ "$list_all" == "true" ]]; then
         show_full_config "$config_file"
+    else
+        show_config_summary "$config_file"
     fi
 
     return 0
@@ -218,7 +246,53 @@ get_config_value() {
     fi
 }
 
-# set_config_value() - Set config value and persist to file
+# set_config_value_internal() - Helper to set value in file without logging/validation (for batch updates)
+set_config_value_internal() {
+    local config_file="$1"
+    local key="$2"
+    local value="$3"
+
+    # Update config file using awk to avoid sed escaping issues
+    if grep -q "^${key}=" "$config_file" 2>/dev/null; then
+        # Key exists, update it using awk
+        local temp_file="${config_file}.tmp"
+        awk -v key="$key" -v value="$value" '
+            BEGIN { updated=0 }
+            $0 ~ "^" key "=" { print key "=\"" value "\""; updated=1; next }
+            { print }
+        ' "$config_file" > "$temp_file"
+
+        if ! mv "$temp_file" "$config_file"; then
+            rm -f "$temp_file"
+            return 1
+        fi
+    else
+        # Key doesn't exist, append it
+        echo "${key}=\"${value}\"" >> "$config_file"
+    fi
+    return 0
+}
+
+# remove_config_value_internal() - Helper to remove value from file
+remove_config_value_internal() {
+    local config_file="$1"
+    local key="$2"
+
+    if grep -q "^${key}=" "$config_file" 2>/dev/null; then
+        local temp_file="${config_file}.tmp"
+        awk -v key="$key" '
+            $0 !~ "^" key "=" { print }
+        ' "$config_file" > "$temp_file"
+
+        if ! mv "$temp_file" "$config_file"; then
+            rm -f "$temp_file"
+            return 1
+        fi
+    fi
+    return 0
+}
+
+# set_config_value() - Set config value and persist to file (public API)
 set_config_value() {
     local config_file="$1"
     local set_pair="$2"
@@ -239,32 +313,134 @@ set_config_value() {
 
     log_debug "Setting config: $key=$value"
 
-    # Update config file using awk to avoid sed escaping issues
-    if grep -q "^${key}=" "$config_file" 2>/dev/null; then
-        # Key exists, update it using awk
-        local temp_file="${config_file}.tmp"
-        awk -v key="$key" -v value="$value" '
-            BEGIN { updated=0 }
-            $0 ~ "^" key "=" { print key "=\"" value "\""; updated=1; next }
-            { print }
-        ' "$config_file" > "$temp_file"
-
-        if mv "$temp_file" "$config_file"; then
-            log_info "Updated configuration: $key=$value"
-        else
-            rm -f "$temp_file"
-            die "Failed to update configuration file: $config_file"
-        fi
+    if set_config_value_internal "$config_file" "$key" "$value"; then
+        log_info "Updated configuration: $key=$value"
     else
-        # Key doesn't exist, append it
-        echo "${key}=\"${value}\"" >> "$config_file"
-        log_info "Added configuration: $key=$value"
+        die "Failed to update configuration file: $config_file"
     fi
 
     return 0
 }
 
-# show_full_config() - Display full configuration
+# configure_single_model() - Set one model for everything
+configure_single_model() {
+    local config_file="$1"
+    local model="$2"
+
+    log_info "Configuring workflow to use '$model' for everything..."
+
+    # Detect provider
+    local provider
+    provider="$(provider_detect_from_model "$model")"
+    log_info "Detected provider: $provider"
+
+    # Load current config to validate
+    config_load
+
+    # Set Default Provider
+    set_config_value_internal "$config_file" "PROVIDER_DEFAULT" "$provider"
+
+    # Set High/Medium/Low models for this provider
+    set_config_value_internal "$config_file" "PROVIDER_${provider^^}_MODEL_HIGH" "$model"
+    set_config_value_internal "$config_file" "PROVIDER_${provider^^}_MODEL_MEDIUM" "$model"
+    set_config_value_internal "$config_file" "PROVIDER_${provider^^}_MODEL_LOW" "$model"
+
+    # Remove phase-specific provider overrides to ensure default is used
+    local phases=(CLARIFY SPECS ARCH PLAN BUILD GATE FEEDBACK)
+    for phase in "${phases[@]}"; do
+        remove_config_value_internal "$config_file" "PROVIDER_${phase}"
+    done
+
+    log_info "✓ Configuration updated: All phases will use '$model' (Provider: $provider)"
+    echo ""
+    echo "Summary:"
+    echo "- Default Provider: $provider"
+    echo "- Models (High/Med/Low): $model"
+    echo "- Phase Overrides: Cleared"
+}
+
+# configure_provider_defaults() - Switch provider with its default models
+configure_provider_defaults() {
+    local config_file="$1"
+    local provider="$2"
+
+    log_info "Switching default provider to '$provider'..."
+
+    # Load defaults to get standard models if available
+    # We can't easily reset to "factory defaults" for specific keys without hardcoding them here
+    # or reading them from src/lib/config.sh which is already sourced.
+    
+    # Check if provider is valid
+    if ! _is_valid_provider "$provider"; then
+         log_warn "Provider '$provider' is not in the standard list (${VALID_PROVIDERS[*]}). Proceeding anyway."
+    fi
+
+    # Set Default Provider
+    set_config_value_internal "$config_file" "PROVIDER_DEFAULT" "$provider"
+
+    # Remove phase-specific provider overrides
+    local phases=(CLARIFY SPECS ARCH PLAN BUILD GATE FEEDBACK)
+    for phase in "${phases[@]}"; do
+        remove_config_value_internal "$config_file" "PROVIDER_${phase}"
+    done
+
+    log_info "✓ Configuration updated: Default provider set to '$provider'"
+    log_info "Note: Model mappings for $provider were left as-is (or defaults)."
+}
+
+# show_config_summary() - Display simplified configuration summary
+show_config_summary() {
+    local config_file="$1"
+
+    # Load configuration
+    config_load
+
+    echo "Configuration Summary ($config_file)"
+    echo "================================================================================"
+
+    local default_provider
+    default_provider="$(config_get "PROVIDER_DEFAULT")"
+    echo "Default Provider: ${COLOR_CYAN}${default_provider}${COLOR_RESET}"
+    
+    # Show models for default provider
+    local high med low
+    high="$(config_get "PROVIDER_${default_provider^^}_MODEL_HIGH" || echo "N/A")"
+    med="$(config_get "PROVIDER_${default_provider^^}_MODEL_MEDIUM" || echo "N/A")"
+    low="$(config_get "PROVIDER_${default_provider^^}_MODEL_LOW" || echo "N/A")"
+
+    echo "Default Models:"
+    echo "  High Capability:   $high"
+    echo "  Medium Capability: $med"
+    echo "  Low Capability:    $low"
+    echo ""
+
+    # Show Phase Overrides
+    echo "Phase Overrides:"
+    local phases=(CLARIFY SPECS ARCH PLAN BUILD GATE FEEDBACK)
+    local has_overrides=false
+
+    for phase in "${phases[@]}"; do
+        local phase_provider
+        phase_provider="$(config_get "PROVIDER_${phase}" || echo "")"
+        
+        if [[ -n "$phase_provider" && "$phase_provider" != "$default_provider" ]]; then
+            echo "  - ${phase}: Uses provider ${COLOR_CYAN}${phase_provider}${COLOR_RESET}"
+            has_overrides=true
+        fi
+    done
+
+    if [[ "$has_overrides" == "false" ]]; then
+        echo "  (None - all phases use default provider)"
+    fi
+
+    echo ""
+    echo "Tips:"
+    echo "  Use '--set-model <model>' to use one model for everything."
+    echo "  Use '--set-provider <provider>' to switch default provider."
+    echo "  Use '--list' to see all configuration options (including HITL, Build, etc)."
+}
+
+# show_full_config() - Display full configuration (Legacy + New)
 show_full_config() {
     local config_file="$1"
 
@@ -276,16 +452,24 @@ show_full_config() {
     echo "Configuration file: $config_file"
     echo ""
 
-    # Show all config values
-    echo "=== Model Settings ==="
-    echo "MODEL_CLARIFY=$(config_get MODEL_CLARIFY)"
-    echo "MODEL_SPECS=$(config_get MODEL_SPECS)"
-    echo "MODEL_ARCH=$(config_get MODEL_ARCH)"
-    echo "MODEL_PLAN=$(config_get MODEL_PLAN)"
-    echo "MODEL_BUILD_PRIMARY=$(config_get MODEL_BUILD_PRIMARY)"
-    echo "MODEL_BUILD_SECONDARY=$(config_get MODEL_BUILD_SECONDARY)"
-    echo "MODEL_GATE=$(config_get MODEL_GATE)"
-    echo "MODEL_FEEDBACK=$(config_get MODEL_FEEDBACK)"
+    echo "=== Provider Settings ==="
+    echo "PROVIDER_DEFAULT=$(config_get PROVIDER_DEFAULT)"
+    for p in CLARIFY SPECS ARCH PLAN BUILD GATE FEEDBACK; do
+        val="$(config_get "PROVIDER_$p" || echo "")"
+        [[ -n "$val" ]] && echo "PROVIDER_$p=$val"
+    done
+    echo ""
+
+    echo "=== Model Mappings ==="
+    # Show mapping for active providers
+    for prov in CLAUDE OPENCODE OPENAI GEMINI; do
+        h="$(config_get "PROVIDER_${prov}_MODEL_HIGH" || echo "")"
+        if [[ -n "$h" ]]; then
+            echo "PROVIDER_${prov}_MODEL_HIGH=$h"
+            echo "PROVIDER_${prov}_MODEL_MEDIUM=$(config_get "PROVIDER_${prov}_MODEL_MEDIUM")"
+            echo "PROVIDER_${prov}_MODEL_LOW=$(config_get "PROVIDER_${prov}_MODEL_LOW")"
+        fi
+    done
     echo ""
 
     echo "=== HITL Settings ==="
@@ -301,10 +485,11 @@ show_full_config() {
     echo "BUILD_BACKPRESSURE_LINT=$(config_get BUILD_BACKPRESSURE_LINT)"
     echo ""
 
-    echo "=== Retry Settings ==="
-    echo "RETRY_MAX_ATTEMPTS=$(config_get RETRY_MAX_ATTEMPTS)"
-    echo "RETRY_BASE_DELAY=$(config_get RETRY_BASE_DELAY)"
-
+    echo "=== Legacy/Compat Settings ==="
+    echo "MODEL_CLARIFY=$(config_get MODEL_CLARIFY)"
+    echo "MODEL_SPECS=$(config_get MODEL_SPECS)"
+    # ... other legacy models ...
+    
     return 0
 }
 
@@ -319,56 +504,34 @@ USAGE:
 DESCRIPTION:
     Manage workflow configuration settings.
 
-    Configuration is stored in .workflow/config.sh and contains settings for
-    model selection, HITL behavior, build options, and retry behavior.
-
 OPTIONS:
+    --set-model MODEL   Set a single model to be used for ALL phases (Simplest UX)
+    --set-provider PROV Set the default provider (e.g., claude, opencode)
+    --list, --all       Show full configuration details
     --edit              Open config file in \$EDITOR
     --get KEY           Get specific config value
     --set KEY=VALUE     Set config value (persists to file)
     --help, -h          Show this help message
 
 EXAMPLES:
-    # Show all configuration
+    # Show summary
     workflow config
 
-    # Get specific value
-    workflow config --get MODEL_BUILD_PRIMARY
+    # Use Claude 3 Opus for everything
+    workflow config --set-model claude-3-opus-20240229
 
-    # Set a value
-    workflow config --set MODEL_BUILD_PRIMARY=sonnet
+    # Use OpenCode provider for everything (with default models)
+    workflow config --set-provider opencode
 
-    # Edit configuration interactively
-    workflow config --edit
+    # Show all configuration details
+    workflow config --list
 
     # Enable HITL
     workflow config --set HITL_ENABLED=true
-    workflow config --set HITL_MODE=milestone
-
-CONFIGURATION KEYS:
-    Model Settings:
-        MODEL_CLARIFY, MODEL_SPECS, MODEL_ARCH, MODEL_PLAN,
-        MODEL_BUILD_PRIMARY, MODEL_BUILD_SECONDARY, MODEL_GATE, MODEL_FEEDBACK
-
-    HITL Settings:
-        HITL_ENABLED, HITL_MODE, HITL_TIMEOUT
-
-    Build Settings:
-        BUILD_MAX_ITERATIONS, BUILD_BACKPRESSURE_TESTS,
-        BUILD_BACKPRESSURE_TYPECHECK, BUILD_BACKPRESSURE_LINT
-
-    Retry Settings:
-        RETRY_MAX_ATTEMPTS, RETRY_BASE_DELAY
 
 EXIT CODES:
     0    Success
-    1    Error (invalid key, permission denied)
-
-NOTES:
-    - Valid model values: opus, sonnet, haiku
-    - Valid HITL modes: task, milestone, uncertain, every:N
-    - Environment variables (WORKFLOW_<KEY>) override config file values
-    - Never store secrets in config files; use environment variables
+    1    Error
 EOF
 }
 

@@ -239,7 +239,7 @@ EOF
     echo "  1. Review docs/BROWNFIELD_ANALYSIS.md"
     echo "  2. Run 'workflow explore' for detailed analysis"
     echo "  3. Create specs in specs/ directory"
-    echo "  4. Set up constitution in .specify/constitution.md"
+    echo "  4. Run 'workflow constitution' to establish governance"
 }
 
 # brownfield_protect_patterns(project_root) - Generate constitution from existing patterns

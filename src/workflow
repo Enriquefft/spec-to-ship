@@ -56,19 +56,20 @@ VERSION:
     $VERSION
 
 SUBCOMMANDS:
-    init        Initialize project with Spec-to-Ship structure
-    clarify     Transform rough PRD into structured format
-    specs       Generate spec files from structured PRD
-    arch        Generate architecture document from specs
-    plan        Generate implementation plan
-    build       Execute autonomous build loop
-    gate        Run milestone validation
-    status      Show current workflow state
-    diff        Show changes since last milestone
-    config      Manage configuration
-    provider    Manage AI providers
-    explore     Analyze existing codebase
-    ci          CI/CD integration commands
+    init          Initialize project with Spec-to-Ship structure
+    clarify       Transform rough PRD into structured format
+    constitution  Generate project governance principles
+    specs         Generate spec files from structured PRD
+    arch          Generate architecture document from specs
+    plan          Generate implementation plan
+    build         Execute autonomous build loop
+    gate          Run milestone validation
+    status        Show current workflow state
+    diff          Show changes since last milestone
+    config        Manage configuration
+    provider      Manage AI providers
+    explore       Analyze existing codebase
+    ci            CI/CD integration commands
 
 GLOBAL OPTIONS:
     -h, --help      Show help for command
@@ -196,6 +197,11 @@ main() {
             # shellcheck source=src/commands/clarify.sh
             source "${COMMANDS_DIR}/clarify.sh"
             cmd_clarify "$@"
+            ;;
+        constitution)
+            # shellcheck source=src/commands/constitution.sh
+            source "${COMMANDS_DIR}/constitution.sh"
+            cmd_constitution "$@"
             ;;
         specs)
             # shellcheck source=src/commands/specs.sh
