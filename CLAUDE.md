@@ -57,7 +57,7 @@ tests/
 **Agent Polyfill** (`src/lib/agent.sh`)
 - Wraps text models to simulate tool-calling with XML tags: `<tool_code>`, `<ask_user>`, `<final_answer>`
 
-### Configuration
+### Per project configuration
 
 Lives in `.workflow/config.sh`. Override with env vars: `WORKFLOW_<KEY>=value`
 
@@ -71,6 +71,7 @@ Lives in `.workflow/config.sh`. Override with env vars: `WORKFLOW_<KEY>=value`
 4. **Quoting:** Always quote variables: `"$var"` not `$var`
 5. **Error handling:** Use `die` for fatal, return non-zero for recoverable
 6. **Constants:** Use `readonly VERSION="1.0.0"`
+7. **Budget:** Tests should NEVER run claude or any other llm.
 
 ## Common Pitfalls
 

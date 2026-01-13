@@ -59,13 +59,13 @@ Generate an implementation plan with this structure:
 
 ### Milestone 1
 
-- [ ] T001 [M1] Brief task description (depends: none)
-- [ ] T002 [M1] Brief task description (depends: T001) [P]
-- [ ] T003 [M1] Brief task description (depends: none)
+- [ ] T001 [M1] Brief task description - depends: none - complexity: low
+- [ ] T002 [M1] Brief task description - depends: T001 - complexity: high [P]
+- [ ] T003 [M1] Brief task description - depends: none - complexity: medium
 
 ### Milestone 2
 
-- [ ] T004 [M2] Brief task description (depends: T002, T003)
+- [ ] T004 [M2] Brief task description - depends: T002, T003 - complexity: high
 ...
 
 **Format Rules**:
@@ -73,9 +73,15 @@ Generate an implementation plan with this structure:
 - Follow with task ID (T001, T002, etc.)
 - Include `[MX]` milestone marker
 - Add brief description
-- Optionally add `(depends: T001, T002)` for dependencies
+- Add `- depends: T001, T002` for dependencies (use `none` if no dependencies)
+- Add `- complexity: high|medium|low` for AI model selection
 - Optionally add `[P]` marker for parallel-safe tasks
 - Keep description concise (one line)
+
+**Complexity Guidelines** (for adaptive model selection):
+- `complexity: low` - Documentation, config changes, simple tests, renaming, formatting
+- `complexity: medium` - Standard CRUD, bug fixes, test suites, refactoring existing code
+- `complexity: high` - Complex algorithms, architectural decisions, multi-file refactors, new features
 
 ---
 
@@ -423,6 +429,7 @@ Before finalizing the plan:
 - [ ] Timeline is realistic given team size
 - [ ] Quality gates are specific and measurable
 - [ ] Every task in Task Summary has a corresponding detailed specification
+- [ ] **Every task has complexity assigned** (`- complexity: high|medium|low`)
 
 ## Example: Good vs. Bad Tasks
 
@@ -440,7 +447,7 @@ Before finalizing the plan:
 
 ### Milestone 2
 
-- [ ] T042 [M2] Implement User Registration API (depends: T015, T023)
+- [ ] T042 [M2] Implement User Registration API - depends: T015, T023 - complexity: high
 
 ## Detailed Task Specifications
 

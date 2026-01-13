@@ -49,7 +49,10 @@
       "Bash(timeout 90 bats:*)",
       "Bash(find:*)",
       "Bash(git merge 002-spec-to-ship-improvements --no-ff -m \"$(cat <<''EOF''\nMerge branch ''002-spec-to-ship-improvements'' into main\n\nFeature 002: Spec-to-ship improvements\n\nKey deliverables:\n- Token optimization and context management\n- Multi-agent UX improvements\n- Quality gates integration\n- Phase 4 robustness features\n- Phase 5: exploration, brownfield support, CI/CD integration\n- Simplified README with MIT license\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(workflow build:*)",
+      "Bash(nix-shell:*)",
+      "Bash(./src/workflow:*)"
     ],
     "deny": [],
     "ask": []
