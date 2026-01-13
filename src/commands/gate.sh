@@ -249,35 +249,43 @@ _gate_run_validation() {
 
 EOF
 
-    # Run BATS tests if available
+    # Detect test command: config > run_tests.sh > package.json > Makefile
     log_info "Running test suite..."
-    if [[ -d "$project_root/tests" ]]; then
-        local test_output
-        local test_exit_code=0
+    local test_output=""
+    local test_cmd=""
+    test_cmd=$(config_get "TEST_COMMAND" 2>/dev/null || echo "")
 
-        if test_output=$(bats "$project_root/tests" 2>&1); then
-            tests_passed=$(echo "$test_output" | grep -c "^ok" || echo "0")
-            log_info "${COLOR_GREEN}✓${COLOR_RESET} Tests passed: $tests_passed"
+    if [[ -z "$test_cmd" ]]; then
+        if [[ -f "$project_root/tests/run_tests.sh" ]]; then
+            test_cmd="bash tests/run_tests.sh"
+        elif [[ -f "$project_root/package.json" ]] && grep -q '"test"' "$project_root/package.json"; then
+            # Works with npm, yarn, pnpm, bun, deno
+            test_cmd="npm test"
+        elif [[ -f "$project_root/Makefile" ]] && grep -q "^test:" "$project_root/Makefile"; then
+            test_cmd="make test"
+        fi
+    fi
+
+    if [[ -n "$test_cmd" ]]; then
+        if test_output=$(cd "$project_root" && eval "$test_cmd" 2>&1); then
+            log_info "${COLOR_GREEN}✓${COLOR_RESET} Tests passed"
             details+="### Test Suite"$'\n\n'
             details+="**Status**: ✓ PASSED"$'\n\n'
-            details+="**Tests Passed**: $tests_passed"$'\n\n'
+            details+="**Command**: \`$test_cmd\`"$'\n\n'
         else
-            test_exit_code=$?
-            tests_passed=$(echo "$test_output" | grep -c "^ok" || echo "0")
-            tests_failed=$(echo "$test_output" | grep -c "^not ok" || echo "0")
-            log_warn "Tests failed: $tests_failed (passed: $tests_passed)"
+            local test_exit_code=$?
+            log_warn "Tests failed (exit code: $test_exit_code)"
             validation_passed=false
             details+="### Test Suite"$'\n\n'
             details+="**Status**: ✗ FAILED"$'\n\n'
-            details+="**Tests Passed**: $tests_passed"$'\n'
-            details+="**Tests Failed**: $tests_failed"$'\n\n'
+            details+="**Command**: \`$test_cmd\`"$'\n\n'
             details+="<details>"$'\n'"<summary>Test Output</summary>"$'\n\n'"$'```\n'"$test_output"$'\n```\n'"</details>"$'\n\n'
         fi
     else
-        log_warn "No test directory found, skipping test validation"
+        log_warn "No test command configured, skipping test validation"
         details+="### Test Suite"
         details+=$'\n\n'
-        details+="**Status**: ⊘ SKIPPED - no tests found"
+        details+="**Status**: ⊘ SKIPPED - no test command configured"
         details+=$'\n\n'
     fi
 

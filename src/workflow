@@ -26,6 +26,13 @@ export COMMANDS_DIR
 # shellcheck source=src/lib/common.sh
 source "${LIB_DIR}/common.sh"
 
+# Source activity logging (transparent LLM activity)
+# shellcheck source=src/lib/activity.sh
+source "${LIB_DIR}/activity.sh"
+
+# Verbose level: 0=quiet, 1=info (-v), 2=debug (-vv), 3=trace (-vvv)
+VERBOSE_LEVEL=0
+
 # Initialize logging
 _init_logging() {
     local git_root
@@ -41,7 +48,11 @@ _init_logging() {
     LOG_FILE="${LOG_DIR}/$(date '+%Y%m%d_%H%M%S').log"
     export LOG_FILE
 
+    # Initialize activity logging with verbose level
+    activity_init "$VERBOSE_LEVEL" "$LOG_DIR"
+
     log_debug "Session log: $LOG_FILE"
+    log_debug "Activity log: $ACTIVITY_LOG_FILE"
 }
 
 # Show help message
@@ -73,9 +84,15 @@ SUBCOMMANDS:
 
 GLOBAL OPTIONS:
     -h, --help      Show help for command
-    -v, --version   Show version
-    --verbose       Enable debug output to stderr
+    --version       Show version
+    -v              Verbose level 1: show activity info
+    -vv             Verbose level 2: show debug details
+    -vvv            Verbose level 3: show prompts/responses (trace)
     -c, --config    Override config file path
+
+LOGGING:
+    Activity logs are written to .workflow/logs/activity_*.log
+    Use -v/-vv/-vvv to see more inline output during execution
 
 EXAMPLES:
     # Initialize new project
@@ -105,12 +122,39 @@ show_version() {
 VERBOSE=false
 CONFIG_FILE=""
 
+# Helper to increment verbose level
+_increment_verbose() {
+    VERBOSE_LEVEL=$((VERBOSE_LEVEL + 1))
+    if [[ $VERBOSE_LEVEL -gt 3 ]]; then
+        VERBOSE_LEVEL=3
+    fi
+    # Keep VERBOSE=true for backward compatibility with log_debug
+    VERBOSE=true
+    export VERBOSE VERBOSE_LEVEL ACTIVITY_VERBOSE_LEVEL="$VERBOSE_LEVEL"
+}
+
 parse_global_options() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --verbose)
+            -vvv)
+                VERBOSE_LEVEL=3
                 VERBOSE=true
-                export VERBOSE
+                export VERBOSE VERBOSE_LEVEL ACTIVITY_VERBOSE_LEVEL=3
+                shift
+                ;;
+            -vv)
+                VERBOSE_LEVEL=2
+                VERBOSE=true
+                export VERBOSE VERBOSE_LEVEL ACTIVITY_VERBOSE_LEVEL=2
+                shift
+                ;;
+            -v)
+                _increment_verbose
+                shift
+                ;;
+            --verbose)
+                # Legacy: treat as -v
+                _increment_verbose
                 shift
                 ;;
             -c|--config)
@@ -122,7 +166,7 @@ parse_global_options() {
                 show_help
                 exit 0
                 ;;
-            -v|--version)
+            --version)
                 show_version
                 exit 0
                 ;;
@@ -144,9 +188,25 @@ main() {
     # Parse global options first - must consume args manually
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --verbose)
+            -vvv)
+                VERBOSE_LEVEL=3
                 VERBOSE=true
-                export VERBOSE
+                export VERBOSE VERBOSE_LEVEL ACTIVITY_VERBOSE_LEVEL=3
+                shift
+                ;;
+            -vv)
+                VERBOSE_LEVEL=2
+                VERBOSE=true
+                export VERBOSE VERBOSE_LEVEL ACTIVITY_VERBOSE_LEVEL=2
+                shift
+                ;;
+            -v)
+                _increment_verbose
+                shift
+                ;;
+            --verbose)
+                # Legacy: treat as -v
+                _increment_verbose
                 shift
                 ;;
             -c|--config)
@@ -158,7 +218,7 @@ main() {
                 show_help
                 exit 0
                 ;;
-            -v|--version)
+            --version)
                 show_version
                 exit 0
                 ;;

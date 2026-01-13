@@ -491,8 +491,8 @@ _build_execute_task() {
 
     log_info "Invoking Agent for task implementation..."
 
-    # Call the AGENT LOOP with minimal context
-    if ! agent_run_task "Implement task $task_id: $task_desc" "$context_file"; then
+    # Call the AGENT LOOP with task_id for adaptive model selection
+    if ! agent_run_task "$task_id" "Implement task $task_id: $task_desc" "$context_file"; then
         log_error "Agent failed to implement task"
         plan_set_task_status "$task_id" "failed"
         tempfile_remove "$context_file"
@@ -536,29 +536,29 @@ _build_validate_backpressure() {
     local project_root="$1"
     local all_passed=true
 
-    # Check if there are test files
-    local test_count=0
-    if [[ -d "$project_root/tests" ]]; then
-        test_count=$(find "$project_root/tests" -name "*.bats" -o -name "*.test.*" | wc -l)
+    # Detect test command: config > run_tests.sh > package.json > Makefile
+    local test_cmd=""
+    test_cmd=$(config_get "TEST_COMMAND" 2>/dev/null || echo "")
+
+    if [[ -z "$test_cmd" ]]; then
+        if [[ -f "$project_root/tests/run_tests.sh" ]]; then
+            test_cmd="bash tests/run_tests.sh"
+        elif [[ -f "$project_root/package.json" ]] && grep -q '"test"' "$project_root/package.json"; then
+            # Works with npm, yarn, pnpm, bun, deno
+            test_cmd="npm test"
+        elif [[ -f "$project_root/Makefile" ]] && grep -q "^test:" "$project_root/Makefile"; then
+            test_cmd="make test"
+        fi
     fi
 
-    if [[ $test_count -gt 0 ]]; then
-        log_info "Running tests..."
-        if [[ -f "$project_root/package.json" ]] && command -v npm &> /dev/null; then
-            if ! npm test 2>&1 | tail -20; then
-                log_error "Tests failed"
-                all_passed=false
-            fi
-        elif command -v bats &> /dev/null; then
-            if ! bats "$project_root/tests"/**/*.bats 2>&1 | tail -20; then
-                log_error "BATS tests failed"
-                all_passed=false
-            fi
-        else
-            log_warn "No test runner found, skipping tests"
+    if [[ -n "$test_cmd" ]]; then
+        log_info "Running tests: $test_cmd"
+        if ! (cd "$project_root" && eval "$test_cmd") 2>&1 | tail -20; then
+            log_error "Tests failed"
+            all_passed=false
         fi
     else
-        log_debug "No tests found, skipping test execution"
+        log_debug "No test command configured, skipping tests"
     fi
 
     # Run shellcheck on bash files if available
