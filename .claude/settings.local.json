@@ -52,7 +52,12 @@
       "Bash(git stash:*)",
       "Bash(workflow build:*)",
       "Bash(nix-shell:*)",
-      "Bash(./src/workflow:*)"
+      "Bash(./src/workflow:*)",
+      "Bash(timeout 30 claude:*)",
+      "Bash(claude:*)",
+      "Bash(nix flake check:*)",
+      "Bash(nix flake format:*)",
+      "Bash(nix fmt:*)"
     ],
     "deny": [],
     "ask": []
