@@ -303,7 +303,20 @@ cmd_build() {
         # Execute single task iteration
         local task_start_time
         task_start_time=$(date +%s)
-        if ! _build_execute_task "$project_root" "$task_id" "$hitl_mode" "$use_git"; then
+        local task_exit_code=0
+        _build_execute_task "$project_root" "$task_id" "$hitl_mode" "$use_git" || task_exit_code=$?
+
+        # Handle interrupt (Ctrl+C)
+        if [[ $task_exit_code -eq 130 ]]; then
+            log_warn "Task interrupted by user"
+            build_state_save "$task_id" "$iteration" "$current_milestone" "interrupted"
+            audit_build_interrupted "$task_id" "$iteration"
+            exit_code=130
+            break
+        fi
+
+        # Handle other failures
+        if [[ $task_exit_code -ne 0 ]]; then
             log_error "Task execution failed: $task_id"
             audit_task_failed "$task_id" "execution failed"
             build_state_mark_failed "task $task_id failed"
@@ -492,7 +505,18 @@ _build_execute_task() {
     log_info "Invoking Agent for task implementation..."
 
     # Call the AGENT LOOP with task_id for adaptive model selection
-    if ! agent_run_task "$task_id" "Implement task $task_id: $task_desc" "$context_file"; then
+    local agent_exit_code=0
+    agent_run_task "$task_id" "Implement task $task_id: $task_desc" "$context_file" || agent_exit_code=$?
+
+    # Handle interrupt signal (Ctrl+C)
+    if [[ $agent_exit_code -eq 130 ]]; then
+        log_warn "Agent interrupted by signal"
+        tempfile_remove "$context_file"
+        return 130
+    fi
+
+    # Handle other failures
+    if [[ $agent_exit_code -ne 0 ]]; then
         log_error "Agent failed to implement task"
         plan_set_task_status "$task_id" "failed"
         tempfile_remove "$context_file"
