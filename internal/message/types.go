@@ -199,3 +199,52 @@ func DecodeMessage(data []byte) (Message, error) {
 		return nil, nil
 	}
 }
+// Add injection message type
+func (m *LLMStartMessage) WithInjectionQueue(queue []string) *LLMStartMessage {
+    return m
+}
+
+type LLMInjectMessage struct {
+    BaseMessage
+    TaskID  string `json:"task_id,omitempty"`
+    Content string `json:"content"`
+}
+
+func (m *LLMInjectMessage) GetType() MessageType {
+    return TypeLLMInject
+}
+
+// Add to DecodeMessage
+case TypeLLMInject:
+    if strings.HasPrefix(string(data), `"type":"llm_inject"`) {
+        var msg LLMInjectMessage
+        return &msg, json.Unmarshal(data, &msg)
+    }
+
+// Existing imports and types...
+
+// Injection message type
+type LLMInjectMessage struct {
+	BaseMessage
+	TaskID  string `json:"task_id,omitempty"`
+	Content string `json:"content"`
+}
+
+func (m *LLMInjectMessage) GetType() MessageType {
+    return TypeLLMInject
+}
+
+// Add to DecodeMessage function
+func DecodeMessage(data []byte) (Message, error) {
+    var base BaseMessage
+    if err := json.Unmarshal(data, &base); err != nil {
+        return nil, err
+    }
+
+    switch base.Type {
+    case TypeLLMInject:
+        var msg LLMInjectMessage
+        return &msg, json.Unmarshal(data, &msg)
+    // ... existing cases ...
+    }
+}
