@@ -226,7 +226,21 @@ adaptive_should_compress_history() {
     local step_count="$1"
     local threshold
     threshold="$(_adaptive_get_config ADAPTIVE_HISTORY_COMPRESS_THRESHOLD 10)"
-    [[ $step_count -ge $threshold ]]
+    if [[ $step_count -ge $threshold ]]; then
+        return 0
+    fi
+
+    # Also compress if history file grows too large
+    local history_file="${AGENT_HISTORY_FILE:-}"
+    if [[ -n "$history_file" && -f "$history_file" ]]; then
+        local size_bytes
+        size_bytes=$(wc -c < "$history_file" 2>/dev/null || echo 0)
+        local size_threshold
+        size_threshold="$(_adaptive_get_config ADAPTIVE_HISTORY_SIZE_THRESHOLD 50000)"
+        [[ $size_bytes -ge $size_threshold ]]
+    else
+        return 1
+    fi
 }
 
 # adaptive_compress_history(history_file) - Compress older history entries

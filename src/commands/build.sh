@@ -142,6 +142,19 @@ cmd_build() {
         log_debug "Using current directory as project root: $project_root"
     fi
 
+    # Preflight: ensure we can write in the project root to avoid silent permission loops
+    _build_check_writable() {
+        local dir="$1"
+        local probe
+        probe="$(mktemp "$dir/.writecheck.XXXX" 2>/dev/null)" || return 1
+        rm -f "$probe" 2>/dev/null || true
+        return 0
+    }
+
+    if ! _build_check_writable "$project_root"; then
+        die "Project directory is not writable: $project_root. Fix permissions (e.g., chown) and retry."
+    fi
+
     # Validate git repository (unless --no-git specified)
     local use_git=true
     if ! git_is_repo; then

@@ -128,8 +128,13 @@ provider_copilot_invoke() {
     local prompt_content
     prompt_content="$(cat "$prompt_file")"
 
-    # Prepare copilot command
-    local copilot_cmd=(copilot --prompt "$prompt_content")
+    # Prefer prompt-file to avoid argv limits; fall back to inline if unsupported
+    local copilot_cmd
+    if copilot --help 2>/dev/null | grep -q -- "--prompt-file"; then
+        copilot_cmd=(copilot --prompt-file "$prompt_file")
+    else
+        copilot_cmd=(copilot --prompt "$prompt_content")
+    fi
 
     # Add model selection when specified
     if [[ -n "$model_name" ]]; then

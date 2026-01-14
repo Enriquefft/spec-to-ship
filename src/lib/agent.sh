@@ -280,6 +280,25 @@ _agent_handle_question() {
     _agent_record_result "User Answer: $user_answer"
 }
 
+_agent_truncate_content() {
+    local content="$1"
+    local max_lines=200
+    local max_chars=8000
+
+    local line_count
+    line_count=$(printf "%s\n" "$content" | wc -l)
+    local char_count=${#content}
+
+    if (( line_count <= max_lines && char_count <= max_chars )); then
+        printf "%s" "$content"
+        return
+    fi
+
+    printf "%s\n\n[Truncated: %d lines, %d chars]" \
+        "$(printf "%s\n" "$content" | head -n "$max_lines" | sed "s/.\\{$max_chars\\}.*/&/")" \
+        "$line_count" "$char_count"
+}
+
 _agent_record_result() {
     local header="$1"
     local content="${2:-}"
@@ -292,7 +311,7 @@ _agent_record_result() {
         if [[ -n "$content" ]]; then
             echo "
 \`\`\`" >> "$AGENT_HISTORY_FILE"
-            echo "$content" >> "$AGENT_HISTORY_FILE"
+            _agent_truncate_content "$content" >> "$AGENT_HISTORY_FILE"
             echo "
 \`\`\`" >> "$AGENT_HISTORY_FILE"
         fi
