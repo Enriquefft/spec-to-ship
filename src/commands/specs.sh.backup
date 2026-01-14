@@ -105,13 +105,6 @@ Location: .workflow/constitution.md"
     fi
     log_info "Constitution validated"
 
-    # Emit phase start
-    if tui_is_enabled 2>/dev/null; then
-        tui_phase_start "specs"
-    else
-        log_info "Starting specifications generation..."
-    fi
-    
     log_info "Loading structured PRD: $prd_structured"
 
     # Read structured PRD content
@@ -188,13 +181,6 @@ Location: .workflow/constitution.md"
     log_info "  Generated: $generated_count"
     log_info "  Skipped: $skipped_count"
 
-    # Emit phase complete
-    if tui_is_enabled 2>/dev/null; then
-        tui_phase_complete "specs" "true" "0"
-    else
-        log_info "Specifications generation completed"
-    fi
-    
     if [[ $generated_count -gt 0 ]]; then
         echo ""
         log_info "Spec files created in: $project_root/specs/"

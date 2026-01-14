@@ -207,12 +207,31 @@ provider_invoke() {
     trap '_provider_cleanup; exit 130' INT
     trap '_provider_cleanup; exit 143' TERM
 
+    # Generate task ID
+    local task_id
+    task_id="$(date +%s)_$$"
+    
     # Log LLM activity start
-    activity_llm_start "$provider" "$model" "${PROVIDER_CURRENT_PHASE:-}"
-
-    # Log prompt content at trace level
+    if tui_is_enabled 2>/dev/null; then
+        tui_llm_start "${PROVIDER_CURRENT_PHASE:-}" "$provider" "$model" "$task_id"
+    else
+        activity_llm_start "$provider" "$model" "${PROVIDER_CURRENT_PHASE:-}"
+    fi
+    
+    # Log prompt content
     if [[ -f "$prompt_file" ]]; then
-        activity_llm_prompt "$(cat "$prompt_file")"
+        local prompt_content
+        prompt_content="$(cat "$prompt_file")"
+        if tui_is_enabled 2>/dev/null; then
+            # Count tokens (approximate)
+            local tokens
+            tokens=$(echo "$prompt_content" | wc -c)
+            tokens=$((tokens / 4))  # Rough estimate: 4 chars per token
+            
+            tui_llm_prompt "$task_id" "$prompt_content" "$tokens"
+        else
+            activity_llm_prompt "$prompt_content"
+        fi
     fi
 
     # Start spinner during the blocking call (visual feedback)
@@ -238,18 +257,37 @@ provider_invoke() {
     end_time="$(date +%s)"
     duration=$((end_time - start_time))
 
-    # Log response at trace level
+    # Log response
     if [[ -f "$temp_output" ]]; then
-        activity_llm_response "$(cat "$temp_output")"
+        response_content="$(cat "$temp_output")"
+        
+        if tui_is_enabled 2>/dev/null; then
+            # Estimate response tokens
+            local response_tokens
+            response_tokens=$(echo "$response_content" | wc -c)
+            response_tokens=$((response_tokens / 4))
+            
+            tui_llm_response "$task_id" "$response_content" "$response_tokens" $((duration * 1000))
+            tui_llm_complete "$task_id" $((duration * 1000)) "true"
+        else
+            activity_llm_response "$response_content"
+            activity_llm_complete "$duration" "unknown"
+        fi
+        
+        log_info "[$provider] completed in ${duration}s"
+    else
+        if tui_is_enabled 2>/dev/null; then
+            tui_llm_complete "$task_id" $((duration * 1000)) "false" "No output generated"
+        else
+            activity_llm_complete "$duration" "error"
+        fi
     fi
 
-    # Log completion
-    activity_llm_complete "$duration" "unknown"
-    activity_info "[$provider] completed in ${duration}s"
-
     # Output the captured result
-    cat "$temp_output"
-    rm -f "$temp_output"
+    if [[ -f "$temp_output" ]]; then
+        cat "$temp_output"
+        rm -f "$temp_output"
+    fi
 
     return $exit_code
 }

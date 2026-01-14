@@ -46,6 +46,8 @@ cmd_arch() {
     # Load config
     config_load
 
+    # Emit phase start\n    if tui_is_enabled 2>/dev/null; then\n        tui_phase_start "arch"\n    else\n        log_info "Starting architecture phase..."\n    fi
+
     # Get project root
     local project_root
     if project_root="$(git_root 2>/dev/null)"; then

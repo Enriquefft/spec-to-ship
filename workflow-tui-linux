@@ -1,0 +1,18 @@
+#!/bin/bash
+# workflow-tui wrapper - launches appropriate binary
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BINARY="workflow-tui-${CURRENT_GOOS}-${CURRENT_GOARCH}"
+
+# Add .exe for Windows
+if [[ "$CURRENT_GOOS" == "windows" ]]; then
+    BINARY="${BINARY}.exe"
+fi
+
+# Export Go path if not in PATH
+if ! command -v go &>/dev/null && [[ -d "$HOME/go" ]]; then
+    export PATH="$HOME/go/bin:$PATH"
+fi
+
+# Launch the binary
+exec "$SCRIPT_DIR/bin/$BINARY" "$@"

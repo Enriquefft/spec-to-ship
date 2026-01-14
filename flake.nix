@@ -23,6 +23,8 @@
           tmux
           bats
 
+          go
+
           lefthook
           commitlint-rs
 

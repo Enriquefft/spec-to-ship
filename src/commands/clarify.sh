@@ -79,8 +79,13 @@ cmd_clarify() {
         esac
     done
 
-    log_info "Starting clarify phase..."
-
+    # Emit phase start
+    if tui_is_enabled 2>/dev/null; then
+        tui_phase_start "clarify"
+    else
+        log_info "Starting clarify phase..."
+    fi
+    
     # Load configuration
     config_load
 

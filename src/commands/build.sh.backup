@@ -237,12 +237,7 @@ cmd_build() {
     # Log build start to audit
     audit_build_start "$plan_file" "milestone=$milestone hitl=$hitl_mode max=$max_iterations"
 
-    # Emit phase start
-    if tui_is_enabled 2>/dev/null; then
-        tui_phase_start "build" "Load plan" "Validate tasks" "Execute tasks" "Git commits" "Progress tracking"
-    else
-        log_info "Starting autonomous build loop..."
-    fi
+    log_info "Starting autonomous build loop..."
     if [[ -n "$milestone" ]]; then
         log_info "Filtering tasks for milestone: $milestone"
     fi

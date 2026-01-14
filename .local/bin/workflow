@@ -22,12 +22,9 @@ export WORKFLOW_BIN
 export LIB_DIR
 export COMMANDS_DIR
 
-# Get script directory from location of this script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.. && pwd)"
-
 # Source common library
 # shellcheck source=src/lib/common.sh
-source "${SCRIPT_DIR}/src/lib/common.sh"
+source "${LIB_DIR}/common.sh"
 
 # Check for TUI mode
 if [[ -n "${WORKFLOW_TUI:-}" && "${WORKFLOW_TUI}" != "false" ]]; then

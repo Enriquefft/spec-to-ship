@@ -131,6 +131,8 @@ Use --regen to regenerate the plan (this will overwrite existing plan)."
 
     log_info "Using planning approach: $planning_approach"
 
+    # Emit phase start\n    if tui_is_enabled 2>/dev/null; then\n        tui_phase_start "plan"\n    else\n        log_info "Starting planning phase..."\n    fi
+
     # Perform gap analysis on existing code (using cached context analysis)
     log_info "Scanning src/ directory for gap analysis..."
     local gap_analysis
