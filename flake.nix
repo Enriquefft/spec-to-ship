@@ -27,6 +27,7 @@
 
           lefthook
           commitlint-rs
+          shellcheck
 
           nodePackages.vercel
           stdenv.cc.cc.lib

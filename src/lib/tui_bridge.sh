@@ -379,32 +379,25 @@ if [[ -n "${WORKFLOW_TUI:-}" && "${WORKFLOW_TUI}" != "false" ]]; then
     TUI_ENABLED="true"
     tui_init
 fi
-# Add injection function
+
+# tui_inject_message() - Emit LLM injection message
+# Usage: tui_inject_message <task_id> <content>
 tui_inject_message() {
     local task_id="$1"
     local content="$2"
     
+    # Sanitize content for JSON
+    content="$(echo "$content" | sed 's/"/\\"/g' | tr '\n' ' ')"
+    
     local json
-    json="$(cat <<EOF
+    json="$(cat <<INNEREOF
 {
   "type": "llm_inject",
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "task_id": "$task_id",
   "content": "$content"
 }
-
-# Existing functions...
-
-# Injection function
-tui_inject_message() {
-    local task_id="$1"
-    local content="$2"
-    
-    local json
-    json="$(cat <<EOF
-{
-  "type": "llm_inject",
-  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "task_id": "$task_id",
-  "content": "$content"
+INNEREOF
+)"
+    tui_emit "$json"
 }

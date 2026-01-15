@@ -16,6 +16,111 @@ if [[ -z "${COLOR_RESET:-}" ]]; then
     readonly COLOR_BOLD='\033[1m'
 fi
 
+# Log level configuration
+VERBOSE="${VERBOSE:-false}"
+LOG_LEVEL="${WORKFLOW_LOG_LEVEL:-INFO}"
+COMPONENT="${COMPONENT:-workflow}"
+
+# Log file path (set by calling script)
+LOG_FILE="${LOG_FILE:-}"
+
+# Get timestamp for logs
+_timestamp() {
+    date '+%Y-%m-%d %H:%M:%S'
+}
+
+# Sanitize message to remove secrets
+# Optimized: Single sed invocation with all patterns combined
+_sanitize_message() {
+    local message="$1"
+
+    # Apply all secret patterns in a single sed invocation for performance
+    # shellcheck disable=SC2016  # $ in sed patterns are not variables
+    echo "$message" | sed -E \
+        -e 's/sk-[a-zA-Z0-9]{32,}/[REDACTED_API_KEY]/g' \
+        -e 's/ghp_[a-zA-Z0-9]{36}/[REDACTED_GITHUB_TOKEN]/g' \
+        -e 's/gho_[a-zA-Z0-9]{36}/[REDACTED_GITHUB_OAUTH]/g' \
+        -e 's/AIza[0-9A-Za-z_-]{35}/[REDACTED_GOOGLE_KEY]/g' \
+        -e 's/Bearer [a-zA-Z0-9._~+\/-]+=*/Bearer [REDACTED_TOKEN]/g' \
+        -e 's/token[=:][[:space:]]*[a-zA-Z0-9._~+\/-]+=*/token=[REDACTED_TOKEN]/gi' \
+        -e 's/password[=:][[:space:]]*[^[:space:]]+/password=[REDACTED_PASSWORD]/gi' \
+        -e 's/secret[=:][[:space:]]*[^[:space:]]+/secret=[REDACTED_SECRET]/gi' \
+        -e 's/apikey[=:][[:space:]]*[^[:space:]]+/apikey=[REDACTED_KEY]/gi' \
+        -e 's/api_key[=:][[:space:]]*[^[:space:]]+/api_key=[REDACTED_KEY]/gi' \
+        -e 's/-----BEGIN[[:space:]].*PRIVATE KEY-----.*-----END[[:space:]].*PRIVATE KEY-----/[REDACTED_PRIVATE_KEY]/g' \
+        2>/dev/null || echo "$message"
+}
+
+# Log to file if LOG_FILE is set
+_log_to_file() {
+    local level="$1"
+    local message="$2"
+
+    if [[ -n "$LOG_FILE" ]]; then
+        # Sanitize message before writing to file
+        local sanitized_message
+        sanitized_message="$(_sanitize_message "$message")"
+        echo "[$(_timestamp)] [$level] [$COMPONENT] $sanitized_message" >> "$LOG_FILE"
+    fi
+}
+
+# log_debug(message) - Log debug message (only if VERBOSE=true)
+log_debug() {
+    local message="$1"
+
+    _log_to_file "DEBUG" "$message"
+
+    if [[ "$VERBOSE" == "true" ]]; then
+        echo -e "${COLOR_GRAY}[DEBUG] [$COMPONENT] $message${COLOR_RESET}" >&2
+    fi
+}
+
+# log_info(message) - Log info message
+log_info() {
+    local message="$1"
+
+    _log_to_file "INFO" "$message"
+    echo -e "${COLOR_BLUE}[INFO] [$COMPONENT] $message${COLOR_RESET}" >&2
+}
+
+# log_warn(message) - Log warning message
+log_warn() {
+    local message="$1"
+
+    _log_to_file "WARN" "$message"
+    echo -e "${COLOR_YELLOW}[WARN] [$COMPONENT] $message${COLOR_RESET}" >&2
+}
+
+# log_error(message) - Log error message
+log_error() {
+    local message="$1"
+
+    _log_to_file "ERROR" "$message"
+    echo -e "${COLOR_RED}[ERROR] [$COMPONENT] $message${COLOR_RESET}" >&2
+}
+
+# die(message, exit_code) - Log error and exit
+die() {
+    local message="$1"
+    local exit_code="${2:-1}"
+
+    log_error "$message"
+    exit "$exit_code"
+}
+
+# require_command(cmd) - Check if command exists
+require_command() {
+    local cmd="$1"
+
+    if ! command -v "$cmd" &> /dev/null; then
+        die "Required command not found: $cmd" 1
+    fi
+
+    log_debug "Found required command: $cmd"
+    return 0
+}
+
+
 require_file() {
     local path="$1"
 

@@ -54,14 +54,14 @@ tui_inject_message() {
     local content="$2"
     
     local json
-    json="$(cat <<EOF
+    json="$(cat <<INNEREOF
 {
   "type": "llm_inject",
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "task_id": "$task_id",
   "content": "$content"
 }
-EOF
+INNEREOF
 )"
     tui_emit "$json"
 }
@@ -83,7 +83,7 @@ tui_llm_start_enhanced() {
         injections_content="$(cat "$injection_queue_file")"
         
         if [[ -n "$injections_content" ]]; then
-            json_with_injections=$(cat <<EOF
+            json_with_injections=$(cat <<INNEREOF
 {
   "type": "llm_start",
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
@@ -93,10 +93,10 @@ tui_llm_start_enhanced() {
   "task_id": "$task_id",
   "injection_queue": $injections_content
 }
-EOF
+INNEREOF
 )
         else
-            json_with_injections=$(cat <<EOF
+            json_with_injections=$(cat <<INNEREOF2
 {
   "type": "llm_start",
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
@@ -105,7 +105,7 @@ EOF
   "model": "$model",
   "task_id": "$task_id"
 }
-EOF
+INNEREOF2
 )
         fi
         
@@ -113,7 +113,7 @@ EOF
         rm -f "$injection_queue_file"
     else
         # No injections, use original
-        json_with_injections=$(cat <<EOF
+        json_with_injections=$(cat <<INNEREOF3
 {
   "type": "llm_start",
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
@@ -122,7 +122,7 @@ EOF
   "model": "$model",
   "task_id": "$task_id"
 }
-EOF
+INNEREOF3
 )
     fi
     
@@ -138,9 +138,9 @@ tui_queue_injection() {
     
     # Add to queue
     local injection_json
-    injection_json=$(cat <<EOF
+    injection_json=$(cat <<INNEREOF4
 {"task_id": "$task_id", "content": "$content"}
-EOF
+INNEREOF4
 )
     
     echo "$injection_json" >> "$injection_queue_file"
@@ -208,9 +208,9 @@ provider_queue_injection() {
     local content="$2"
     
     local injection_json
-    injection_json=$(cat <<EOF
+    injection_json=$(cat <<INNEREOF5
 {"task_id": "$task_id", "content": "$content"}
-EOF
+INNEREOF5
 )
     
     echo "$injection_json" >> "$PROVIDER_INJECTION_QUEUE"

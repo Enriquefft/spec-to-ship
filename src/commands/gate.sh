@@ -281,7 +281,7 @@ EOF
             details+="### Test Suite"$'\n\n'
             details+="**Status**: ✗ FAILED"$'\n\n'
             details+="**Command**: \`$test_cmd\`"$'\n\n'
-            details+="<details>"$'\n'"<summary>Test Output</summary>"$'\n\n'"$'```\n'"$test_output"$'\n```\n'"</details>"$'\n\n'
+            details+='<details>'$'\n''<summary>Test Output</summary>'$'\n\n''```'$'\n'"$test_output"$'\n''```'$'\n''</details>'$'\n\n'
         fi
     else
         log_warn "No test command configured, skipping test validation"
@@ -307,7 +307,7 @@ EOF
             validation_passed=false
             details+="### Shellcheck"$'\n\n'
             details+="**Status**: ✗ FAILED"$'\n\n'
-            details+="<details>"$'\n'"<summary>Shellcheck Output</summary>"$'\n\n'"$'```\n'"$shellcheck_output"$'\n```\n'"</details>"$'\n\n'
+            details+='<details>'$'\n''<summary>Shellcheck Output</summary>'$'\n\n''```'$'\n'"$shellcheck_output"$'\n''```'$'\n''</details>'$'\n\n'
         fi
     fi
 

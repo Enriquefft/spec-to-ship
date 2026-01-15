@@ -375,7 +375,7 @@ _clarify_interactive_smart() {
             options_list=$(echo "$questions_json" | jq -r ".questions[] | select(.id == $i) | .options[] | \"\(.id)|\(.desc)\"" 2>/dev/null)
         else
             # Fallback: basic text extraction
-            question_text=$(echo "$questions_json" | grep -o "\"id\"[[:space:]]*:[[:space:]]*$i[^}]*\"text\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | sed 's/.*"text"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+            question_text=$(echo "$questions_json" | grep -o "\"id\"[[:space:]]*:[[:space:]]*${i}[^}]*\"text\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | sed 's/.*"text"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
         fi
 
         if [[ -z "$question_text" ]]; then

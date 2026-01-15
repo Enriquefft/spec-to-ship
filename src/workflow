@@ -22,22 +22,21 @@ export WORKFLOW_BIN
 export LIB_DIR
 export COMMANDS_DIR
 
-# Get script directory from location of this script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.. && pwd)"
+# Get project root directory (one level up from script location, since script is in src/)
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # Source common library
 # shellcheck source=src/lib/common.sh
-source "${SCRIPT_DIR}/src/lib/common.sh"
+source "${PROJECT_ROOT}/src/lib/common.sh"
 
 # Check for TUI mode
 if [[ -n "${WORKFLOW_TUI:-}" && "${WORKFLOW_TUI}" != "false" ]]; then
     # Source TUI bridge
     # shellcheck source=src/lib/tui_bridge.sh
-    source "${LIB_DIR}/tui_bridge.sh"
+    source "${PROJECT_ROOT}/src/lib/tui_bridge.sh"
 else
     # shellcheck source=src/lib/activity.sh
-    source "${LIB_DIR}/activity.sh"
-fi
+    source "${PROJECT_ROOT}/src/lib/activity.sh"
 fi
 
 # Verbose level: 0=quiet, 1=info (-v), 2=debug (-vv), 3=trace (-vvv)

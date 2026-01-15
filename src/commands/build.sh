@@ -644,12 +644,14 @@ _build_hitl_check() {
 
     # Task mode - pause after every task
     if [[ "$hitl_mode" == "task" ]] && [[ "$checkpoint_type" == "task" ]]; then
-        return _build_hitl_prompt "$task_id" "$use_git"
+        _build_hitl_prompt "$task_id" "$use_git"
+        return $?
     fi
 
     # Milestone mode - only pause at milestones
     if [[ "$hitl_mode" == "milestone" ]] && [[ "$checkpoint_type" == "milestone" ]]; then
-        return _build_hitl_prompt "$task_id" "$use_git"
+        _build_hitl_prompt "$task_id" "$use_git"
+        return $?
     fi
 
     # Default: no intervention needed
@@ -713,7 +715,8 @@ _build_hitl_prompt() {
                 log_warn "No editor found, use EDITOR environment variable"
             fi
             # Ask again after editing
-            return _build_hitl_prompt "$task_id" "$use_git"
+            _build_hitl_prompt "$task_id" "$use_git"
+            return $?
             ;; 
         skip|s)
             log_info "Skipped by user"

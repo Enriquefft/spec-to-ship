@@ -45,14 +45,14 @@ tui_inject_message() {
     local content="$2"
     
     local json
-    json="$(cat <<EOF
+    json="$(cat <<INNEREOF
 {
   "type": "llm_inject",
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "task_id": "$task_id",
   "content": "$content"
 }
-EOF
+INNEREOF
 )"
     
     tui_emit "$json"
